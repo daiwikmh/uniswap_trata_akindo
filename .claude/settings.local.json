@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.eigencloud.xyz)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.uniswap.org)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

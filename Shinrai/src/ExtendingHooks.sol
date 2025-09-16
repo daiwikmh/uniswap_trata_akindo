@@ -5,7 +5,11 @@ import {BaseHook} from "v4-periphery/src/utils/BaseHook.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {IEigenAssetVerifier} from "./IEigenAssetVerifier.sol";
+import {IEigenAssetVerifier} from "./interface/IEigenAssetVerifier.sol";
+import {SwapParams} from "v4-core/types/PoolOperation.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
+
 
 contract EigenPredictHook is BaseHook {
     // Address of the EigenAssetVerifierContract
@@ -17,35 +21,48 @@ contract EigenPredictHook is BaseHook {
     }
 
     // Required by BaseHook: Specifies which hooks are implemented
-    function getHooksCalls() public pure override returns (Hooks.Calls memory) {
-        return Hooks.Calls({
-            beforeInitialize: false,
-            afterInitialize: false,
-            beforeModifyPosition: false,
-            afterModifyPosition: false,
-            beforeSwap: true, // Enable beforeSwap hook
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false
-        });
+      function getHookPermissions()
+        public
+        pure
+        override
+        returns (Hooks.Permissions memory)
+    {
+        return
+            Hooks.Permissions({
+                beforeInitialize: true,
+                afterInitialize: true,
+                beforeAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterAddLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: true,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 
     // Called before a swap in the Uniswap V4 pool
-    function beforeSwap(
+    function _beforeSwap(
         address sender,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata params
-    ) external override returns (bytes4) {
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
         // Extract market ID (e.g., from pool metadata or key)
         bytes32 marketId = _getMarketId(key);
 
         // Call the EigenAssetVerifierContract to validate swap conditions
-        bool canSwap = verifier.verifySwap(marketId, params);
+        bool canSwap = verifier.verifySwap(marketId, params, hookData);
 
         // Revert if verification fails
         require(canSwap, "EigenPredictHook: Swap not allowed by verifier");
 
-        return BaseHook.beforeSwap.selector;
+        return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
     // Internal function to derive market ID (customize based on your setup)
