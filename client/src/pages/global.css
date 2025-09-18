@@ -254,3 +254,556 @@
 .group:hover .animate-marquee-down {
   animation-play-state: paused;
 }
+
+/* Leverage Trading Styles */
+.leverage-trading {
+  background: var(--background);
+  min-height: 100vh;
+}
+
+.leverage-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.leverage-button-long {
+  background: var(--success);
+  color: var(--background);
+  border: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-button-long:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.leverage-button-short {
+  background: var(--destructive);
+  color: var(--background);
+  border: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-button-short:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.leverage-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.leverage-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-position-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-position-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leverage-position-long {
+  border-left: 4px solid var(--success);
+}
+
+.leverage-position-short {
+  border-left: 4px solid var(--destructive);
+}
+
+.leverage-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.leverage-stat-card {
+  background: var(--secondary);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+  transition: all 0.2s ease-in-out;
+}
+
+.leverage-stat-card:hover {
+  background: var(--accent);
+}
+
+.leverage-input-group {
+  position: relative;
+}
+
+.leverage-input-group input {
+  padding-right: 3rem;
+}
+
+.leverage-input-group .input-suffix {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .leverage-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .leverage-card {
+    margin: 0.5rem;
+  }
+}
+
+/* Animation for position health indicator */
+@keyframes pulse-health {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.health-indicator-danger {
+  animation: pulse-health 2s infinite;
+  color: var(--destructive);
+}
+
+.health-indicator-warning {
+  color: var(--warning);
+}
+
+.health-indicator-good {
+  color: var(--success);
+}
+
+/* Pool Creator Styles */
+.pool-creator-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  space-y: 1.5rem;
+}
+
+.pool-creator-header {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.pool-creator-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--muted);
+  padding: 0.25rem;
+  border-radius: var(--radius-lg);
+  width: fit-content;
+}
+
+.pool-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.pool-tab-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pool-tab-inactive {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.pool-tab-inactive:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.pool-creator-content {
+  space-y: 1.5rem;
+}
+
+.pool-quick-start {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.pool-quick-token {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.pool-quick-token:hover {
+  background: var(--accent);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pool-config-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.pool-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.pool-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  transition: all 0.2s ease-in-out;
+  font-family: inherit;
+}
+
+.pool-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary);
+  box-shadow: 0 0 0 3px oklch(from var(--primary) l c h / 0.2);
+}
+
+.pool-input:hover {
+  border-color: var(--accent);
+}
+
+.pool-token-input {
+  space-y: 0.5rem;
+}
+
+.pool-token-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.pool-param-input {
+  space-y: 0.5rem;
+}
+
+.pool-preview {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.pool-preview-content {
+  space-y: 0.75rem;
+}
+
+.pool-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.pool-preview-label {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.pool-create-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pool-create-button:hover:not(:disabled) {
+  background: var(--primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.pool-create-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.pool-creation-progress {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.pool-progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: var(--secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.pool-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--chart-1));
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease-in-out;
+}
+
+/* Pool Stats Cards */
+.pool-stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.pool-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.pool-stat-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pool-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pool-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.pool-stat-change {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.pool-stat-change.positive {
+  color: var(--success);
+}
+
+.pool-stat-change.negative {
+  color: var(--destructive);
+}
+
+/* Pool List Styles */
+.pool-list-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.pool-list-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.pool-list-item {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.pool-list-item:last-child {
+  border-bottom: none;
+}
+
+.pool-list-item:hover {
+  background: var(--accent);
+}
+
+.pool-list-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pool-list-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pool-list-item-tokens {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.pool-list-item-details {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.pool-list-item-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.pool-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pool-badge-leverage {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.pool-badge-disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pool-creator-container {
+    padding: 1rem;
+  }
+
+  .pool-creator-header {
+    padding: 1rem;
+  }
+
+  .pool-config-form {
+    padding: 1rem;
+  }
+
+  .pool-stats-container {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-list-item-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .pool-list-item-stats {
+    align-items: flex-start;
+  }
+}
+
+/* Dark mode enhancements */
+.dark .pool-progress-bar {
+  background: var(--secondary);
+}
+
+.dark .pool-quick-token:hover {
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.dark .pool-create-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}

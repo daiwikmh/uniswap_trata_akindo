@@ -55,7 +55,7 @@ interface SecurityStatusProps {
 export default function SecurityStatus({ statuses }: SecurityStatusProps) {
   return (
     <DashboardCard
-      title="SECURITY STATUS"
+      title="LEVERAGE POOLS"
       intent="success"
       addon={<Badge variant="outline">ONLINE</Badge>}
     >

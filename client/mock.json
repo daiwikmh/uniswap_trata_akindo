@@ -156,29 +156,29 @@
   ],
   "securityStatus": [
     {
-      "title": "GUARD BOTS",
-      "value": "124/124",
+      "title": "LEVERAGE POOL",
+      "value": "2/100",
       "status": "[RUNNING...]",
+      "variant": "Live"
+    },
+    {
+      "title": "Eigen Operators",
+      "value": "5",
+      "status": "Live",
       "variant": "success"
     },
     {
-      "title": "FIREWALL",
-      "value": "99.9%",
-      "status": "[BLOCKED]",
-      "variant": "success"
-    },
-    {
-      "title": "HTML WARNINGS",
-      "value": "12042",
-      "status": "[ACCESSIBILITY]",
-      "variant": "warning"
+      "title": "Total liquidity",
+      "value": "12ether",
+      "status": "Claimed",
+      "variant": "Zero lost"
     }
   ],
   "notifications": [
     {
       "id": "notif-1",
       "title": "PAYMENT RECEIVED",
-      "message": "Your payment to Rampant Studio has been processed successfully.",
+      "message": "Your pool created successfully.",
       "timestamp": "2024-07-10T13:39:00Z",
       "type": "success",
       "read": false,
@@ -186,8 +186,8 @@
     },
     {
       "id": "notif-2",
-      "title": "INTRO: JOYCO STUDIO AND V0",
-      "message": "About us - We're a healthcare company focused on accessibility and innovation.",
+      "title": "leverage dissolved",
+      "message": "Your 2x Leverage on ETH/USDC has been dissolved with a 10% profit.",
       "timestamp": "2024-07-10T13:35:00Z",
       "type": "info",
       "read": false,
@@ -195,8 +195,8 @@
     },
     {
       "id": "notif-3",
-      "title": "SYSTEM UPDATE",
-      "message": "Security patches have been applied to all guard bots.",
+      "title": "Leverage failed",
+      "message": "Eigen operator has ideantified this as a failed leverage attempt.",
       "timestamp": "2024-07-10T12:15:00Z",
       "type": "info",
       "read": true,

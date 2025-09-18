@@ -1,4 +1,4 @@
-"use client";
+
 
 import * as React from "react";
 import {
@@ -45,8 +45,8 @@ type DashboardSidebarProps = React.ComponentProps<typeof Sidebar> & {
 
 const navItems = [
   { title: "Overview", url: "/", icon: BracketsIcon, locked: false },
+  { title: "Leverage", url: "/leverage", icon: ProcessorIcon, locked: false },
   { title: "Create Pool", url: "/create-pool", icon: AtomIcon, locked: false },
-  { title: "Devices", url: "/devices", icon: ProcessorIcon, locked: false },
   { title: "Security", url: "/security", icon: CuteRobotIcon, locked: false },
   { title: "Communication", url: "/communication", icon: EmailIcon, locked: false },
   { title: "Admin Settings", url: "/admin", icon: GearIcon, locked: true },
@@ -121,8 +121,8 @@ export function DashboardSidebar({
           <MonkeyIcon className="size-10 group-hover:scale-[1.7] origin-top-left transition-transform" />
         </div>
         <div className="grid flex-1 text-left text-sm leading-tight">
-          <span className="text-2xl font-display">M.O.N.K.Y.</span>
-          <span className="text-xs uppercase">The OS for Rebels</span>
+          <span className="text-2xl font-display">S.H.I.N.R.A.I</span>
+          <span className="text-xs uppercase">The Leverage Hook</span>
         </div>
       </SidebarHeader>
 

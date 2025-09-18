@@ -1,4 +1,3 @@
-"use client";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { useChatState } from "./use-chat-state";
