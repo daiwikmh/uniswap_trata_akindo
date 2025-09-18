@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {ILeverageValidator} from "./interface/ILeverageValidator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -17,8 +16,6 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
 
     // ============ State Variables ============
 
-    /// @notice EigenLayer leverage validator
-    ILeverageValidator public immutable leverageValidator;
 
     /// @notice Total system-wide borrow caps per token
     mapping(address => uint256) public globalBorrowCaps;
@@ -151,10 +148,11 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
     // ============ Constructor ============
 
     constructor(
-        address _leverageValidator,
+        address _delegationManager,
         address _owner
     ) Ownable(_owner) {
-        leverageValidator = ILeverageValidator(_leverageValidator);
+        // Simply store the delegation manager address if needed
+        // No complex validation logic required
     }
 
     // ============ Borrow Authorization Functions ============
@@ -200,22 +198,15 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
             });
         }
 
-        // Validate through EigenLayer
-        ILeverageValidator.BorrowValidation memory eigenValidation = leverageValidator.validateBorrowRequest(
-            poolId,
-            borrower,
-            borrowToken,
-            borrowAmount,
-            collateralAmount
-        );
-
-        if (!eigenValidation.canBorrow) {
+        // Simple validation - require 150% collateral
+        uint256 requiredCollateral = (borrowAmount * 15000) / 10000;
+        if (collateralAmount < requiredCollateral) {
             return BorrowAuthorization({
                 authorized: false,
-                maxAmount: eigenValidation.maxBorrowAmount,
-                requiredCollateral: eigenValidation.requiredCollateral,
+                maxAmount: (collateralAmount * 10000) / 15000,
+                requiredCollateral: requiredCollateral,
                 utilizationImpact: 0,
-                reason: eigenValidation.reason
+                reason: "Insufficient collateral"
             });
         }
 
@@ -226,8 +217,8 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
         if (newUtilization > 9500) { // 95% max utilization
             return BorrowAuthorization({
                 authorized: false,
-                maxAmount: eigenValidation.maxBorrowAmount,
-                requiredCollateral: eigenValidation.requiredCollateral,
+                maxAmount: (collateralAmount * 10000) / 15000,
+                requiredCollateral: requiredCollateral,
                 utilizationImpact: newUtilization,
                 reason: "Would exceed max utilization"
             });
@@ -241,7 +232,7 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
         return BorrowAuthorization({
             authorized: true,
             maxAmount: borrowAmount,
-            requiredCollateral: eigenValidation.requiredCollateral,
+            requiredCollateral: requiredCollateral,
             utilizationImpact: newUtilization,
             reason: "Authorized"
         });
@@ -361,14 +352,15 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
      */
     function updateFundingRate(bytes32 poolId) external {
         uint256 utilization = poolUtilizationRates[poolId];
-        uint256 newFundingRate = leverageValidator.calculateFundingRate(poolId, 8000); // Target 80% utilization
+        // Simple funding rate calculation: base 1% + 0.1% per utilization point above 80%
+        uint256 newFundingRate = 100; // Base 1%
+        if (utilization > 8000) {
+            newFundingRate += (utilization - 8000) / 10;
+        }
 
         uint256 oldRate = poolFundingRates[poolId];
         poolFundingRates[poolId] = newFundingRate;
         lastFundingUpdate[poolId] = block.timestamp;
-
-        // Update through EigenLayer
-        leverageValidator.updateFundingRate(poolId, newFundingRate);
 
         emit FundingRateUpdated(poolId, oldRate, newFundingRate, utilization);
     }
@@ -488,20 +480,23 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
         address token,
         uint256 borrowAmount
     ) internal view returns (uint256 newUtilization) {
-        ILeverageValidator.PoolUtilization memory poolUtil = leverageValidator.getPoolUtilization(poolId);
+        // Simple calculation - assume 1M total liquidity for each pool
+        uint256 totalLiquidity = 1000000 ether;
+        uint256 currentBorrowed = poolBorrowed[poolId][token];
+        uint256 newBorrowed = currentBorrowed + borrowAmount;
 
-        if (poolUtil.totalLiquidity == 0) return 0;
-
-        uint256 newBorrowed = poolUtil.borrowedAmount + borrowAmount;
-        return (newBorrowed * 10000) / poolUtil.totalLiquidity;
+        if (totalLiquidity == 0) return 0;
+        return (newBorrowed * 10000) / totalLiquidity;
     }
 
     /**
      * @notice Update pool utilization rate
      */
     function _updateUtilizationRate(bytes32 poolId, address token) internal {
-        ILeverageValidator.PoolUtilization memory poolUtil = leverageValidator.getPoolUtilization(poolId);
-        poolUtilizationRates[poolId] = poolUtil.utilizationRate;
+        // Simple calculation based on current pool state
+        uint256 totalLiquidity = 1000000 ether;
+        uint256 currentBorrowed = poolBorrowed[poolId][token];
+        poolUtilizationRates[poolId] = (currentBorrowed * 10000) / totalLiquidity;
     }
 
     /**
@@ -512,12 +507,14 @@ contract GlobalAssetLedger is ReentrancyGuard, Ownable {
         address token,
         uint256 amount
     ) internal view returns (bool) {
-        // Check all user's positions to ensure they remain healthy
-        bytes32[] memory userPositions = userActivePositions[user];
+        // Simplified check - allow withdrawal if user has sufficient remaining collateral
+        // In production, this would check position health ratios
+        uint256 remainingCollateral = userCollateral[user][token] - amount;
+        uint256 userDebt = userTotalBorrowed[user][token];
 
-        for (uint256 i = 0; i < userPositions.length; i++) {
-            (bool shouldLiquidate,,) = leverageValidator.checkLiquidation(userPositions[i]);
-            if (shouldLiquidate) return false;
+        // Require at least 150% collateral ratio
+        if (userDebt > 0 && remainingCollateral < (userDebt * 15000) / 10000) {
+            return false;
         }
 
         return true;

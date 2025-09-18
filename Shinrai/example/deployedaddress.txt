@@ -1,44 +1,51 @@
-Logs ==
-  === Mining LeverageHook Address ===
-  Required hook permission flags: 960
-  Using CREATE2_DEPLOYER: 0x4e59b44847b379578588920cA78FbF26c0B4956C
-  === Mining Complete ===
-  Hook Address: 0x1c6b52f0D4E6a4d6607113905Ed035B23B26C3c0
-  Salt: 0x00000000000000000000000000000000000000000000000000000000000017c1
-  Address flags extracted: 960
-  Required flags: 960
-  Flags match: true
-  Hook flags verified successfully!
+== Logs ==
+  === Operator Registration Setup ===
+  Deployer: 0xde8792E863d73C751e07c4A88a600d2c5AB0Ff74
+  Operator1: 0xfE8F62e7ACce644e9861b3F03b1c25e3CbE665b6
+  Operator2: 0xE51A8b9A1CC38BF862b4f792efC7eF073CefA276
+  DelegationManager: 0xA44151489861Fe9e3055d95adC98FbD462B948e7
+  AVSDirectory: 0x055733000064333CaDDbC92763c58BF0192fFeBf
+  === Starting Operator Registration ===
+  === Registering Operator1 ===
+  1. Registering with DelegationManager...
+     Successfully registered with DelegationManager
+  Operator1 registration complete
+  
+  === Registering Operator2 ===
+  1. Registering with DelegationManager...
+     Successfully registered with DelegationManager
+  Operator2 registration complete
 
-  === Next Steps ===
-  1. Add this to your .env file:
-     LEVERAGE_HOOK_SALT=0x00000000000000000000000000000000000000000000000000000000000017c1
+  === Operator Registration Complete ===
 
-  2. Your LeverageHook will be deployed to: 0x1c6b52f0D4E6a4d6607113905Ed035B23B26C3c0
-  3. Run deployment scripts with this pre-computed salt
-  Salt saved to mined_hook_salt.env
 
-Logs ==
-  === Core Contract Deployment Setup ===
-  Deployer: 0x0B340C5cBfb62b36dCB793e542D86DFC20D9b1bA
+  = Logs ==
+  === Protocol Configuration Setup ===
   Protocol Owner: 0x0B340C5cBfb62b36dCB793e542D86DFC20D9b1bA
-  === Starting Core Contract Deployment ===
-  1. Deploying PoolManager...
-     PoolManager deployed at: 0x1187D22b02B63109a43f3a5fd7B03f83ece82285
-  2. Deploying MockLeverageValidator...
-     MockLeverageValidator deployed at: 0xA8f31f230BFe82F52F41940CF7DD53b3a7DAed62
-  3. Preparing hook deployment...
-     Using standard CREATE2_DEPLOYER: 0x4e59b44847b379578588920cA78FbF26c0B4956C
-     Required hook flags: 960
-     Mining hook address using HookMiner.find()...
-     Mined hook address: 0x30c06A4C6dc5bAB79f31F5660D2E52C1B38D43c0
-     Mined salt: 0x000000000000000000000000000000000000000000000000000000000000b0ed
-     Save this salt to .env as LEVERAGE_HOOK_SALT for future deployments
-  4. Deploying LeverageHook with standard CREATE2...
-     LeverageHook deployed at: 0x30c06A4C6dc5bAB79f31F5660D2E52C1B38D43c0
-     Hook flags verified successfully
-  5. Deploying GlobalAssetLedger...
-     GlobalAssetLedger deployed at: 0xD9781B57117d8dC0D928DfD84F37D0500f6fB05A
-  6. Deploying MarginRouter...
-     MarginRouter deployed at: 0xF01DDa666F61083D48D5a3CcE6CF04FF7d93fC78
-  Contract addresses saved to deployed_addresses.txt
+  MarginRouter: 0x3dd63AdB03d46fEA41c14D6a557bd3E329DFecC1
+  GlobalAssetLedger: 0x8498fa4591201deF1380328103c7d7050d1F5dd7
+  LeverageHook: 0xedd7a4642F404a06b3051Eb794e5d001c6aD83c0
+  === Starting Protocol Configuration ===
+  1. Configuring GlobalAssetLedger...
+     MarginRouter authorized
+     Global borrow caps set
+  2. Configuring MarginRouter...
+     Max global leverage set to 10 x
+  3. Setting up mock pools...
+     Setting up TOKEN0/TOKEN1 pool...
+       TOKEN0/TOKEN1 pool configured
+     Setting up WETH/TOKEN0 pool...
+       WETH/TOKEN0 pool configured
+     Setting up WETH/TOKEN1 pool...
+       WETH/TOKEN1 pool configured
+  4. Configuring operator settings...
+     Operator configurations ready
+  5. Verifying configuration...
+     MarginRouter configuration verified
+     GlobalAssetLedger configuration verified
+     All configurations verified successfully
+  === Protocol Configuration Complete ===
+
+
+
+  

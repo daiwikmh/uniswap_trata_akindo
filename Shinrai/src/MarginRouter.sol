@@ -6,7 +6,6 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {SwapParams} from "v4-core/types/PoolOperation.sol";
 import {ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {ILeverageValidator} from "./interface/ILeverageValidator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -20,13 +19,26 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract MarginRouter is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
+    // ============ Structs ============
+
+    struct LeveragePosition {
+        address trader;
+        address collateralToken;
+        address borrowedToken;
+        uint256 collateralAmount;
+        uint256 borrowedAmount;
+        uint256 leverageRatio;
+        bool isLongPosition;
+        uint256 openTimestamp;
+        bytes32 positionId;
+    }
+
     // ============ State Variables ============
 
     /// @notice Uniswap V4 Pool Manager
     IPoolManager public immutable poolManager;
 
     /// @notice EigenLayer leverage validator
-    ILeverageValidator public immutable leverageValidator;
 
     /// @notice Maximum leverage allowed globally
     uint256 public maxGlobalLeverage = 1000; // 10x
@@ -43,7 +55,7 @@ contract MarginRouter is ReentrancyGuard, Ownable {
     mapping(address => bytes32[]) public traderPositions;
 
     /// @notice Position details mapping
-    mapping(bytes32 => ILeverageValidator.LeveragePosition) public positions;
+    mapping(bytes32 => LeveragePosition) public positions;
 
     /// @notice Authorized pools for leverage trading
     mapping(bytes32 => bool) public authorizedPools;
@@ -95,11 +107,11 @@ contract MarginRouter is ReentrancyGuard, Ownable {
 
     constructor(
         address _poolManager,
-        address _leverageValidator,
+        address _delegationManager,
         address _owner
     ) Ownable(_owner) {
         poolManager = IPoolManager(_poolManager);
-        leverageValidator = ILeverageValidator(_leverageValidator);
+        // Store delegation manager if needed for future operator checks
     }
 
     // ============ Core Functions ============
@@ -144,7 +156,7 @@ contract MarginRouter is ReentrancyGuard, Ownable {
         ));
 
         // Create position struct
-        ILeverageValidator.LeveragePosition memory position = ILeverageValidator.LeveragePosition({
+        LeveragePosition memory position = LeveragePosition({
             trader: msg.sender,
             collateralToken: collateralToken,
             borrowedToken: isLongPosition ? Currency.unwrap(poolKey.currency1) : Currency.unwrap(poolKey.currency0),
@@ -156,17 +168,13 @@ contract MarginRouter is ReentrancyGuard, Ownable {
             positionId: positionId
         });
 
-        // Validate through EigenLayer operators
-        (bool isValid, string memory reason) = leverageValidator.validateLeveragePosition(
-            position,
-            new bytes[](0) // Empty signatures for now - would be populated in production
-        );
+        // Simple validation - check leverage ratio and collateral
+        require(position.leverageRatio <= maxGlobalLeverage, "MarginRouter: Leverage too high");
+        require(position.collateralAmount > 0, "MarginRouter: No collateral provided");
 
-        require(isValid, string(abi.encodePacked("MarginRouter: ", reason)));
-
-        // Check cross-pool exposure limits
-        (bool exceedsLimit,,) = leverageValidator.checkCrossPoolExposure(msg.sender, position);
-        require(!exceedsLimit, "MarginRouter: Exceeds cross-pool exposure");
+        // Simple collateral check - require 150% collateral ratio
+        uint256 requiredCollateral = (position.borrowedAmount * 15000) / 10000;
+        require(position.collateralAmount >= requiredCollateral, "MarginRouter: Insufficient collateral");
 
         // Store position
         positions[positionId] = position;
@@ -197,15 +205,15 @@ contract MarginRouter is ReentrancyGuard, Ownable {
         bytes32 positionId,
         PoolKey calldata poolKey
     ) external nonReentrant notPaused returns (int256 pnl) {
-        ILeverageValidator.LeveragePosition memory position = positions[positionId];
+        LeveragePosition memory position = positions[positionId];
 
         require(position.trader == msg.sender, "MarginRouter: Not position owner");
         require(position.openTimestamp > 0, "MarginRouter: Position not found");
 
-        // Check if position needs liquidation
-        (bool shouldLiquidate,,) = leverageValidator.checkLiquidation(positionId);
+        // Simple liquidation check - health ratio below 120%
+        uint256 healthRatio = (position.collateralAmount * 10000) / position.borrowedAmount;
 
-        if (shouldLiquidate) {
+        if (healthRatio < 1200) { // Below 120%
             // Force liquidation
             pnl = _liquidatePosition(positionId, poolKey);
         } else {
@@ -242,7 +250,7 @@ contract MarginRouter is ReentrancyGuard, Ownable {
      */
     function getPosition(
         bytes32 positionId
-    ) external view returns (ILeverageValidator.LeveragePosition memory position) {
+    ) external view returns (LeveragePosition memory position) {
         return positions[positionId];
     }
 
@@ -255,8 +263,9 @@ contract MarginRouter is ReentrancyGuard, Ownable {
     function checkPositionHealth(
         bytes32 positionId
     ) external view returns (bool isHealthy, uint256 healthFactor) {
-        (bool shouldLiquidate,, uint256 health) = leverageValidator.checkLiquidation(positionId);
-        return (!shouldLiquidate, health);
+        LeveragePosition memory position = positions[positionId];
+        uint256 healthRatio = (position.collateralAmount * 10000) / position.borrowedAmount;
+        return (healthRatio >= 1200, healthRatio); // Healthy if above 120%
     }
 
     // ============ Admin Functions ============
@@ -319,7 +328,7 @@ contract MarginRouter is ReentrancyGuard, Ownable {
      */
     function _executeLeverageOperation(
         PoolKey calldata poolKey,
-        ILeverageValidator.LeveragePosition memory position
+        LeveragePosition memory position
     ) internal {
         // Encode position data for hook
         bytes memory hookData = abi.encode(position);

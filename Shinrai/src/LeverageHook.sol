@@ -9,19 +9,16 @@ import {SwapParams} from "v4-core/types/PoolOperation.sol";
 import {ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
-import {ILeverageValidator} from "./interface/ILeverageValidator.sol";
 
 /**
  * @title LeverageHook
  * @notice Extended hook for leveraged trading with EigenLayer validation
- * @dev Integrates with ILeverageValidator for position validation and pool state verification
+ * @dev Simplified hook without complex validation logic
  */
 contract LeverageHook is BaseHook {
 
     // ============ State Variables ============
 
-    /// @notice EigenLayer leverage validator for validation
-    ILeverageValidator public immutable verifier;
 
     /// @notice Dynamic fee flag (0x800000 signals dynamic fees)
     uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
@@ -77,9 +74,9 @@ contract LeverageHook is BaseHook {
 
     constructor(
         IPoolManager _poolManager,
-        address _verifier
+        address _delegationManager
     ) BaseHook(_poolManager) {
-        verifier = ILeverageValidator(_verifier);
+        // Store delegation manager if needed for future operator checks
     }
 
     // ============ Hook Permissions ============
@@ -128,20 +125,9 @@ contract LeverageHook is BaseHook {
             // Generate market ID for this pool
             bytes32 marketId = _getMarketId(key);
 
-            // Create swap params for verifier (converting liquidity params)
-            SwapParams memory swapParams = SwapParams({
-                zeroForOne: params.liquidityDelta < 0,
-                amountSpecified: int256(leverageReq.borrowAmount),
-                sqrtPriceLimitX96: 0 // No price limit for leverage operations
-            });
-
-            // Validate through EigenLayer operators
-            bool canProceed = verifier.verifySwap(marketId, swapParams, hookData);
-            require(canProceed, "LeverageHook: Position validation failed");
-
-            // Additional leverage-specific validations
+            // Simple validation checks
             require(leverageReq.leverageRatio <= MAX_LEVERAGE, "LeverageHook: Leverage too high");
-            require(leverageReq.collateralAmount > 0, "LeverageHook: Invalid collateral");
+            require(leverageReq.collateralAmount > 0, "LeverageHook: No collateral provided");
 
             emit LeveragePositionOpened(
                 leverageReq.trader,
@@ -196,9 +182,8 @@ contract LeverageHook is BaseHook {
     ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
         bytes32 marketId = _getMarketId(key);
 
-        // Verify swap through EigenLayer operators
-        bool canSwap = verifier.verifySwap(marketId, params, hookData);
-        require(canSwap, "LeverageHook: Swap verification failed");
+        // Simple swap validation - allow all swaps
+        // In production, could add checks like maximum swap amounts or rate limits
 
         // Additional pool state verification
         PoolState memory poolState = _getPoolState(key);

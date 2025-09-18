@@ -10,7 +10,7 @@ import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSD
 
 /**
  * @title Step 2: Register Operators with EigenLayer
- * @notice Registers operators with EigenLayer DelegationManager and our AVS
+ * @notice Registers operators with EigenLayer DelegationManager
  */
 contract RegisterOperators is Script {
 
