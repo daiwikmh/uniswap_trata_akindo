@@ -4,13 +4,6 @@ pragma solidity ^0.8.24;
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {SwapParams} from "v4-core/types/PoolOperation.sol";
-import {IStrategy} from "eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";
-import {IDelegationManager} from "eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
-import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
-import {IAllocationManager} from "eigenlayer-contracts/src/contracts/interfaces/IAllocationManager.sol";
-import {IRegistryCoordinator} from "@eigenlayer/interfaces/IRegistryCoordinator.sol";
-import {IStakeRegistry} from "@eigenlayer/interfaces/IStakeRegistry.sol";
-import {IServiceManager} from "@eigenlayer/interfaces/IServiceManager.sol";
 
 /**
  * @title IEigenAssetVerifier
@@ -153,11 +146,11 @@ interface IEigenAssetVerifier {
      * @param strategy EigenLayer strategy address
      * @param newStake Updated stake amount
      */
-    function updateOperatorStake(
-        address operator,
-        IStrategy strategy,
-        uint256 newStake
-    ) external;
+    // function updateOperatorStake(
+    //     address operator,
+    //     IStrategy strategy,
+    //     uint256 newStake
+    // ) external;
     
     /**
      * @notice Check if operator meets minimum stake requirements
@@ -192,24 +185,7 @@ interface IEigenAssetVerifier {
     function isOperatorSlashed(address operator) external view returns (bool isSlashed);
     
     // ============ Registry Integration ============
-    
-    /**
-     * @notice Get the registry coordinator address
-     * @return coordinator Address of the RegistryCoordinator
-     */
-    function getRegistryCoordinator() external view returns (IRegistryCoordinator coordinator);
-    
-    /**
-     * @notice Get the stake registry address
-     * @return stakeRegistry Address of the StakeRegistry
-     */
-    function getStakeRegistry() external view returns (IStakeRegistry stakeRegistry);
-    
-    /**
-     * @notice Get the service manager address
-     * @return serviceManager Address of the ServiceManager
-     */
-    function getServiceManager() external view returns (IServiceManager serviceManager);
+    // Registry functions removed for simplicity - not needed for core functionality
     
     // ============ View Functions ============
     

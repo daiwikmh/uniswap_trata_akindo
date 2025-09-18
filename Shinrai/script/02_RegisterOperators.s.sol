@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
+
+// EigenLayer Contracts
+import {IDelegationManager} from "eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import {ISignatureUtilsMixinTypes} from "eigenlayer-contracts/src/contracts/interfaces/ISignatureUtilsMixin.sol";
+import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
+
+// Shinrai Contracts
+import {ILeverageValidator} from "../src/interface/ILeverageValidator.sol";
+
+/**
+ * @title Step 2: Register Operators with EigenLayer
+ * @notice Registers operators with EigenLayer DelegationManager and our AVS
+ */
+contract RegisterOperators is Script {
+
+    // EigenLayer addresses (Holesky testnet)
+    address internal constant AVS_DIRECTORY = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
+    address internal constant DELEGATION_MANAGER = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+
+    address internal deployer;
+    address internal operator1;
+    address internal operator2;
+
+    // Contract addresses (load from previous deployment)
+    address internal leverageValidatorAddress;
+
+    function setUp() public {
+        deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
+        operator1 = vm.rememberKey(vm.envUint("OPERATOR1_PRIVATE_KEY"));
+        operator2 = vm.rememberKey(vm.envUint("OPERATOR2_PRIVATE_KEY"));
+
+        // Try to load deployed addresses
+        try vm.envAddress("LEVERAGE_VALIDATOR_ADDRESS") returns (address addr) {
+            leverageValidatorAddress = addr;
+        } catch {
+            revert("LEVERAGE_VALIDATOR_ADDRESS not found. Run 01_DeployCore.s.sol first");
+        }
+
+        vm.label(deployer, "Deployer");
+        vm.label(operator1, "Operator1");
+        vm.label(operator2, "Operator2");
+
+        console.log("=== Operator Registration Setup ===");
+        console.log("Deployer:", deployer);
+        console.log("Operator1:", operator1);
+        console.log("Operator2:", operator2);
+        console.log("LeverageValidator:", leverageValidatorAddress);
+    }
+
+    function run() public {
+        console.log("=== Starting Operator Registration ===");
+
+        // Register both operators
+        _registerOperator(operator1, vm.envUint("OPERATOR1_PRIVATE_KEY"), "Operator1");
+        _registerOperator(operator2, vm.envUint("OPERATOR2_PRIVATE_KEY"), "Operator2");
+
+        console.log("=== Operator Registration Complete ===");
+        console.log("Next step: Run 03_ConfigureProtocol.s.sol");
+    }
+
+    function _registerOperator(address operatorAddr, uint256 operatorPrivateKey, string memory operatorName) internal {
+        console.log(string.concat("=== Registering ", operatorName, " ==="));
+
+        IDelegationManager delegationManager = IDelegationManager(DELEGATION_MANAGER);
+        IAVSDirectory avsDirectory = IAVSDirectory(AVS_DIRECTORY);
+        ILeverageValidator leverageValidator = ILeverageValidator(leverageValidatorAddress);
+
+        // Step 1: Register with EigenLayer DelegationManager
+        console.log("1. Registering with DelegationManager...");
+        vm.startBroadcast(operatorAddr);
+
+        try delegationManager.registerAsOperator(
+            address(0), // initDelegationApprover
+            0,          // allocationDelay
+            ""          // metadataURI
+        ) {
+            console.log("   Successfully registered with DelegationManager");
+        } catch Error(string memory reason) {
+            if (keccak256(bytes(reason)) == keccak256(bytes("DelegationManager.registerAsOperator: operator has already registered"))) {
+                console.log("   Already registered with DelegationManager");
+            } else {
+                console.log("    Failed to register with DelegationManager:", reason);
+                revert(reason);
+            }
+        }
+
+        vm.stopBroadcast();
+
+        // Step 2: Create signature for AVS registration
+        console.log("2. Creating AVS registration signature...");
+        bytes32 salt = keccak256(abi.encodePacked(block.timestamp, operatorAddr, operatorName));
+        uint256 expiry = block.timestamp + 1 hours;
+
+        bytes32 digestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
+            operatorAddr,
+            leverageValidatorAddress,
+            salt,
+            expiry
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(operatorPrivateKey, digestHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        ISignatureUtilsMixinTypes.SignatureWithSaltAndExpiry memory operatorSignature =
+            ISignatureUtilsMixinTypes.SignatureWithSaltAndExpiry({
+                signature: signature,
+                salt: salt,
+                expiry: expiry
+            });
+
+        console.log("   Signature created");
+
+        // Step 3: Register with our Leverage AVS
+        console.log("3. Registering with Leverage AVS...");
+        vm.startBroadcast(deployer);
+
+        try leverageValidator.registerOperator(
+            operatorAddr,
+            new uint8[](0), // Empty quorums for now
+            string.concat("socket_", operatorName) // Socket info
+        ) {
+            console.log("   Successfully registered with Leverage AVS");
+        } catch Error(string memory reason) {
+            console.log("    Failed to register with Leverage AVS:", reason);
+            // Don't revert, continue with other operators
+        }
+
+        vm.stopBroadcast();
+
+        console.log(string.concat("", operatorName, " registration complete"));
+        console.log("");
+    }
+}
