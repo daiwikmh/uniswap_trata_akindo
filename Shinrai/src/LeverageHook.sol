@@ -9,19 +9,19 @@ import {SwapParams} from "v4-core/types/PoolOperation.sol";
 import {ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
-import {IEigenAssetVerifier} from "./interface/IEigenAssetVerifier.sol";
+import {ILeverageValidator} from "./interface/ILeverageValidator.sol";
 
 /**
  * @title LeverageHook
  * @notice Extended hook for leveraged trading with EigenLayer validation
- * @dev Integrates with IEigenAssetVerifier for position validation and pool state verification
+ * @dev Integrates with ILeverageValidator for position validation and pool state verification
  */
 contract LeverageHook is BaseHook {
 
     // ============ State Variables ============
 
-    /// @notice EigenLayer asset verifier for validation
-    IEigenAssetVerifier public immutable verifier;
+    /// @notice EigenLayer leverage validator for validation
+    ILeverageValidator public immutable verifier;
 
     /// @notice Dynamic fee flag (0x800000 signals dynamic fees)
     uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
@@ -79,7 +79,7 @@ contract LeverageHook is BaseHook {
         IPoolManager _poolManager,
         address _verifier
     ) BaseHook(_poolManager) {
-        verifier = IEigenAssetVerifier(_verifier);
+        verifier = ILeverageValidator(_verifier);
     }
 
     // ============ Hook Permissions ============

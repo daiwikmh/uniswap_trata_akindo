@@ -6,11 +6,7 @@ import {console} from "forge-std/console.sol";
 
 // EigenLayer Contracts
 import {IDelegationManager} from "eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
-import {ISignatureUtilsMixinTypes} from "eigenlayer-contracts/src/contracts/interfaces/ISignatureUtilsMixin.sol";
 import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
-
-// Shinrai Contracts
-import {ILeverageValidator} from "../src/interface/ILeverageValidator.sol";
 
 /**
  * @title Step 2: Register Operators with EigenLayer
@@ -27,19 +23,10 @@ contract RegisterOperators is Script {
     address internal operator2;
 
     // Contract addresses (load from previous deployment)
-    address internal leverageValidatorAddress;
-
     function setUp() public {
         deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
         operator1 = vm.rememberKey(vm.envUint("OPERATOR1_PRIVATE_KEY"));
         operator2 = vm.rememberKey(vm.envUint("OPERATOR2_PRIVATE_KEY"));
-
-        // Try to load deployed addresses
-        try vm.envAddress("LEVERAGE_VALIDATOR_ADDRESS") returns (address addr) {
-            leverageValidatorAddress = addr;
-        } catch {
-            revert("LEVERAGE_VALIDATOR_ADDRESS not found. Run 01_DeployCore.s.sol first");
-        }
 
         vm.label(deployer, "Deployer");
         vm.label(operator1, "Operator1");
@@ -49,7 +36,8 @@ contract RegisterOperators is Script {
         console.log("Deployer:", deployer);
         console.log("Operator1:", operator1);
         console.log("Operator2:", operator2);
-        console.log("LeverageValidator:", leverageValidatorAddress);
+        console.log("DelegationManager:", DELEGATION_MANAGER);
+        console.log("AVSDirectory:", AVS_DIRECTORY);
     }
 
     function run() public {
@@ -68,7 +56,6 @@ contract RegisterOperators is Script {
 
         IDelegationManager delegationManager = IDelegationManager(DELEGATION_MANAGER);
         IAVSDirectory avsDirectory = IAVSDirectory(AVS_DIRECTORY);
-        ILeverageValidator leverageValidator = ILeverageValidator(leverageValidatorAddress);
 
         // Step 1: Register with EigenLayer DelegationManager
         console.log("1. Registering with DelegationManager...");
@@ -87,47 +74,6 @@ contract RegisterOperators is Script {
                 console.log("    Failed to register with DelegationManager:", reason);
                 revert(reason);
             }
-        }
-
-        vm.stopBroadcast();
-
-        // Step 2: Create signature for AVS registration
-        console.log("2. Creating AVS registration signature...");
-        bytes32 salt = keccak256(abi.encodePacked(block.timestamp, operatorAddr, operatorName));
-        uint256 expiry = block.timestamp + 1 hours;
-
-        bytes32 digestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
-            operatorAddr,
-            leverageValidatorAddress,
-            salt,
-            expiry
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(operatorPrivateKey, digestHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
-
-        ISignatureUtilsMixinTypes.SignatureWithSaltAndExpiry memory operatorSignature =
-            ISignatureUtilsMixinTypes.SignatureWithSaltAndExpiry({
-                signature: signature,
-                salt: salt,
-                expiry: expiry
-            });
-
-        console.log("   Signature created");
-
-        // Step 3: Register with our Leverage AVS
-        console.log("3. Registering with Leverage AVS...");
-        vm.startBroadcast(deployer);
-
-        try leverageValidator.registerOperator(
-            operatorAddr,
-            new uint8[](0), // Empty quorums for now
-            string.concat("socket_", operatorName) // Socket info
-        ) {
-            console.log("   Successfully registered with Leverage AVS");
-        } catch Error(string memory reason) {
-            console.log("    Failed to register with Leverage AVS:", reason);
-            // Don't revert, continue with other operators
         }
 
         vm.stopBroadcast();

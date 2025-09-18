@@ -2,37 +2,41 @@
 pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
-
-// Shinrai Contracts
+import "forge-std/console.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {PoolManager} from "v4-core/PoolManager.sol";
+import {HookMiner} from "v4-periphery/src/utils/HookMiner.sol";
 import {LeverageHook} from "../src/LeverageHook.sol";
 import {MarginRouter} from "../src/MarginRouter.sol";
 import {GlobalAssetLedger} from "../src/GlobalAssetLedger.sol";
 import {ILeverageValidator} from "../src/interface/ILeverageValidator.sol";
-import {IEigenAssetVerifier} from "../src/interface/IEigenAssetVerifier.sol";
-
-// Uniswap V4
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {PoolManager} from "v4-core/PoolManager.sol";
-import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {SwapParams} from "v4-core/types/PoolOperation.sol";
+
+// EigenLayer Contracts
+import {IDelegationManager} from "eigenlayer-contracts/src/contracts/interfaces/IDelegationManager.sol";
+import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSDirectory.sol";
+import {ISignatureUtilsMixinTypes} from "eigenlayer-contracts/src/contracts/interfaces/ISignatureUtilsMixin.sol";
+
 
 /**
  * @title Step 1: Deploy Core Shinrai Contracts
  * @notice Deploys the main protocol contracts
  */
-contract DeployCore is Script, StdCheats {
-
+contract DeployCore is Script {
     address internal deployer;
     address internal protocolOwner;
-
-    // Contract addresses (will be set after deployment)
-    MockLeverageValidator public leverageValidator;
     LeverageHook public leverageHook;
     GlobalAssetLedger public globalAssetLedger;
     MarginRouter public marginRouter;
     IPoolManager public poolManager;
+
+    // Standard Foundry CREATE2 deployer
+    address constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
+    // EigenLayer addresses (Holesky testnet) - Real deployed contracts
+    address internal constant AVS_DIRECTORY = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
+    address internal constant DELEGATION_MANAGER = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
 
     function setUp() public {
         deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
@@ -48,60 +52,80 @@ contract DeployCore is Script, StdCheats {
 
     function run() public {
         console.log("=== Starting Core Contract Deployment ===");
-
         vm.startBroadcast(deployer);
 
-        // 1. Deploy PoolManager (mock for testing)
+        // 1. Deploy PoolManager
         console.log("1. Deploying PoolManager...");
         poolManager = new PoolManager(protocolOwner);
         console.log("   PoolManager deployed at:", address(poolManager));
 
-        // 2. Deploy MockLeverageValidator
-        console.log("2. Deploying MockLeverageValidator...");
-        leverageValidator = new MockLeverageValidator();
-        console.log("   MockLeverageValidator deployed at:", address(leverageValidator));
+        // 2. Reference EigenLayer contracts directly
+        console.log("2. Using EigenLayer contracts directly...");
+        console.log("   DelegationManager:", DELEGATION_MANAGER);
+        console.log("   AVSDirectory:", AVS_DIRECTORY);
 
-        // 3. Deploy LeverageHook with proper flags
-        console.log("3. Deploying LeverageHook...");
-        uint160 hookFlags = uint160(
+        // 3. Mine salt for LeverageHook
+        console.log("3. Preparing hook deployment...");
+        console.log("   Using standard CREATE2_DEPLOYER:", CREATE2_DEPLOYER);
+        uint160 flags = uint160(
             Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG |
             Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
             Hooks.BEFORE_SWAP_FLAG |
             Hooks.AFTER_SWAP_FLAG
         );
+        console.log("   Required hook flags:", flags);
 
-        address hookAddress = address(hookFlags);
-
-        // Deploy LeverageHook to calculated address using deployCodeTo
-        deployCodeTo(
-            "LeverageHook.sol",
-            abi.encode(address(poolManager), address(leverageValidator)),
-            hookAddress
+        bytes memory constructorArgs = abi.encode(address(poolManager), DELEGATION_MANAGER);
+        (address hookAddress, bytes32 salt) = HookMiner.find(
+            CREATE2_DEPLOYER,
+            flags,
+            type(LeverageHook).creationCode,
+            constructorArgs
         );
 
-        leverageHook = LeverageHook(hookAddress);
+        console.log("   Mined hook address:", hookAddress);
+        console.log("   Mined salt:", vm.toString(salt));
+        console.log("   Add this to .env: LEVERAGE_HOOK_SALT=", vm.toString(salt));
+
+        // Verify flags before deploy
+        uint160 ALL_HOOK_MASK = uint160((1 << 14) - 1);
+        uint160 addressFlags = uint160(hookAddress) & ALL_HOOK_MASK;
+        require(addressFlags == flags, "Hook flags verification failed");
+        console.log("   Hook flags verified successfully");
+
+        // 4. Deploy LeverageHook
+        console.log("4. Deploying LeverageHook with standard CREATE2...");
+        leverageHook = new LeverageHook{salt: salt}(
+            IPoolManager(address(poolManager)),
+            DELEGATION_MANAGER
+        );
         console.log("   LeverageHook deployed at:", address(leverageHook));
 
-        // 4. Deploy GlobalAssetLedger
-        console.log("4. Deploying GlobalAssetLedger...");
+        // Verify hook flags
+        uint160 deployedFlags = uint160(address(leverageHook)) & ALL_HOOK_MASK;
+        require(deployedFlags == flags, "LeverageHook: hook flags mismatch");
+        console.log("   Hook flags verified successfully");
+
+        // 5. Deploy GlobalAssetLedger
+        console.log("5. Deploying GlobalAssetLedger...");
         globalAssetLedger = new GlobalAssetLedger(
-            address(leverageValidator),
+            DELEGATION_MANAGER,
             protocolOwner
         );
         console.log("   GlobalAssetLedger deployed at:", address(globalAssetLedger));
 
-        // 5. Deploy MarginRouter
-        console.log("5. Deploying MarginRouter...");
+        // 6. Deploy MarginRouter
+        console.log("6. Deploying MarginRouter...");
         marginRouter = new MarginRouter(
             address(poolManager),
-            address(leverageValidator),
+            DELEGATION_MANAGER,
             protocolOwner
         );
         console.log("   MarginRouter deployed at:", address(marginRouter));
 
         vm.stopBroadcast();
 
-        // 6. Save addresses to file for next steps
+        // 7. Save addresses
         _saveAddresses();
 
         console.log("=== Core Contract Deployment Complete ===");
@@ -111,8 +135,10 @@ contract DeployCore is Script, StdCheats {
     function _saveAddresses() internal {
         string memory addresses = string.concat(
             "# Updated contract addresses from deployment\n",
+            "# Using standard CREATE2_DEPLOYER: ", vm.toString(CREATE2_DEPLOYER), "\n",
             "POOL_MANAGER_ADDRESS=", vm.toString(address(poolManager)), "\n",
-            "LEVERAGE_VALIDATOR_ADDRESS=", vm.toString(address(leverageValidator)), "\n",
+            "DELEGATION_MANAGER_ADDRESS=", vm.toString(DELEGATION_MANAGER), "\n",
+            "AVS_DIRECTORY_ADDRESS=", vm.toString(AVS_DIRECTORY), "\n",
             "LEVERAGE_HOOK_ADDRESS=", vm.toString(address(leverageHook)), "\n",
             "GLOBAL_ASSET_LEDGER_ADDRESS=", vm.toString(address(globalAssetLedger)), "\n",
             "MARGIN_ROUTER_ADDRESS=", vm.toString(address(marginRouter)), "\n"
@@ -122,94 +148,4 @@ contract DeployCore is Script, StdCheats {
     }
 }
 
-/**
- * @title MockLeverageValidator
- * @notice Simplified mock for initial deployment
- */
-contract MockLeverageValidator is ILeverageValidator {
-    mapping(address => bool) public operatorRegistered;
-    bool public defaultValidation = true;
 
-    function registerOperator(address operator, uint8[] calldata, string calldata) external override {
-        operatorRegistered[operator] = true;
-        console.log("Operator registered:", operator);
-    }
-
-    function deregisterOperator(address operator, uint8[] calldata) external override {
-        operatorRegistered[operator] = false;
-    }
-
-    function validateLeveragePosition(
-        LeveragePosition calldata,
-        bytes[] calldata
-    ) external view override returns (bool, string memory) {
-        return (defaultValidation, "Mock validation");
-    }
-
-    function validateBorrowRequest(
-        bytes32, address, address, uint256 borrowAmount, uint256 collateralAmount
-    ) external view override returns (BorrowValidation memory) {
-        return BorrowValidation({
-            canBorrow: defaultValidation,
-            maxBorrowAmount: borrowAmount,
-            requiredCollateral: collateralAmount,
-            liquidationThreshold: 8000,
-            reason: "Mock validation"
-        });
-    }
-
-    function verifySwap(bytes32, SwapParams calldata, bytes calldata) external view override returns (bool) {
-        return defaultValidation;
-    }
-
-    function checkCrossPoolExposure(address, LeveragePosition calldata) external pure override returns (bool, uint256, uint256) {
-        return (false, 0, 1000000 ether);
-    }
-
-    function checkLiquidation(bytes32) external pure override returns (bool, uint256, uint256) {
-        return (false, 0, 1500);
-    }
-
-    function calculateFundingRate(bytes32, uint256) external pure override returns (uint256) {
-        return 100;
-    }
-
-    function getPoolUtilization(bytes32 poolId) external pure override returns (PoolUtilization memory) {
-        return PoolUtilization({
-            poolId: poolId,
-            totalLiquidity: 1000000 ether,
-            borrowedAmount: 500000 ether,
-            utilizationRate: 5000,
-            fundingRate: 100,
-            isAtCapacity: false
-        });
-    }
-
-    // Minimal implementations for other required functions
-    function getOperatorInfo(address) external pure override returns (OperatorInfo memory) {
-        return OperatorInfo(address(0), 0, new uint8[](0), false, false);
-    }
-    function getSwapValidation(bytes32, address, uint256) external pure override returns (SwapValidation memory) {
-        return SwapValidation(true, "", 0, new address[](0));
-    }
-    function createMarket(bytes32, uint256, uint256, uint8[] calldata) external override {}
-    function submitMarketValidation(bytes32, bool, bytes calldata) external override {}
-    function getMarketValidation(bytes32) external pure override returns (MarketValidation memory) {
-        return MarketValidation(bytes32(0), new address[](0), 0, 0, false);
-    }
-    function checkStakeRequirement(address, uint8) external pure override returns (bool) { return true; }
-    function slashOperator(address, bytes32, uint256) external override {}
-    function isOperatorSlashed(address) external pure override returns (bool) { return false; }
-    function getOperatorCount(uint8) external pure override returns (uint256) { return 1; }
-    function getActiveMarkets() external pure override returns (bytes32[] memory) { return new bytes32[](0); }
-    function isMarketActive(bytes32) external pure override returns (bool) { return true; }
-    function checkPoolManipulation(bytes32, bytes calldata, bytes calldata) external pure override returns (ManipulationCheck memory) {
-        return ManipulationCheck(false, 0, 0, 0, new address[](0));
-    }
-    function getTraderExposure(address) external pure override returns (uint256, uint256, uint256) {
-        return (0, 0, 0);
-    }
-    function updateFundingRate(bytes32, uint256) external override {}
-    function emergencyPausePool(bytes32, string calldata) external override {}
-    function emergencyLiquidate(bytes32[] calldata, string calldata) external override {}
-}
