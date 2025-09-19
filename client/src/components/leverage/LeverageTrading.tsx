@@ -70,7 +70,8 @@ const LeverageTrading: React.FC = () => {
   const {
     openLeveragePosition: openLeveragePositionWagmi,
     approveToken: approveTokenWagmi,
-    checkPoolAuthorization
+    checkPoolAuthorization,
+    authorizePoolManually
   } = useWagmiContracts();
 
   // Helper function to get token symbol
@@ -284,13 +285,29 @@ const LeverageTrading: React.FC = () => {
       console.log('Pool authorization status:', isPoolAuthorized);
 
       if (!isPoolAuthorized) {
-        alert(`❌ Pool Not Authorized for Leverage Trading\n\n` +
-              `This pool has not been authorized by the protocol owner.\n\n` +
-              `Options:\n` +
-              `• Contact protocol admin for pool authorization\n` +
-              `• Use the pool for regular swaps (not leverage)\n` +
-              `• Wait for protocol owner to authorize this pool`);
-        return;
+        const shouldTryAuth = confirm(
+          `❌ Pool Not Authorized for Leverage Trading\n\n` +
+          `This pool has not been authorized by the protocol owner.\n\n` +
+          `Options:\n` +
+          `• Click OK to try manual authorization (only works if you're the protocol owner)\n` +
+          `• Click Cancel to cancel the trade\n\n` +
+          `Note: Pool authorization requires protocol owner privileges`
+        );
+
+        if (shouldTryAuth) {
+          try {
+            console.log('🔐 Attempting manual pool authorization...');
+            await authorizePoolManually(poolForTrading.poolKey, leverageRatio);
+            alert('✅ Pool authorization successful! You can now open leverage positions.');
+            // Continue with position opening
+          } catch (authError) {
+            console.error('Pool authorization failed:', authError);
+            alert(`❌ Pool authorization failed: ${authError.message}\n\nYou are not the protocol owner or the transaction was rejected.`);
+            return;
+          }
+        } else {
+          return;
+        }
       }
 
       // Check and approve tokens if needed (use legacy ethers for now to avoid ABI issues)

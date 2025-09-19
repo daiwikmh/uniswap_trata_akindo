@@ -80,7 +80,7 @@ export function useWagmiContracts() {
         currency1: currency1 as `0x${string}`,
         fee: 3000, // 0.3% fee in pips as per Uniswap V4 docs
         tickSpacing: 60, // Granularity - per Uniswap V4 docs
-        hooks: "0x0000000000000000000000000000000000000000" as `0x${string}` // No hook - using official PoolManager
+        hooks: SHINRAI_CONTRACTS.LEVERAGE_HOOK as `0x${string}` // Use LeverageHook for leverage trading
       };
 
       console.log('Creating pool with LeverageHook:', poolKey);
@@ -133,7 +133,7 @@ export function useWagmiContracts() {
       // Step 2.3: Check if pool already exists first
       console.log('Checking if pool already exists...');
       try {
-        const poolId = generatePoolId(currency0, currency1);
+        const poolId = generatePoolId(currency0, currency1, poolKey.fee, poolKey.tickSpacing);
         console.log('Generated Pool ID:', poolId);
 
         const slot0 = await publicClient?.readContract({
@@ -179,15 +179,32 @@ export function useWagmiContracts() {
           functionName: 'authorizePool',
           args: [validatedPoolKey, BigInt(maxLeverage)]
         });
-        console.log('✅ Pool authorization successful:', authTx);
+        console.log('✅ Pool authorization transaction sent:', authTx);
+
+        // Wait for transaction to be mined
+        if (authTx && publicClient) {
+          console.log('⏳ Waiting for authorization transaction to be mined...');
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: authTx,
+            timeout: 30000 // 30 second timeout
+          });
+          console.log('✅ Authorization transaction mined:', receipt.status);
+        }
       } catch (authError: any) {
         console.warn('❌ Pool authorization failed (expected for non-owner users):', authError.message);
         console.log('📝 Pool created successfully but requires owner authorization for leverage trading');
         // Don't throw error - pool creation succeeded
       }
 
-      // Generate pool ID for tracking
+      // Generate pool ID for tracking (ensure consistency with authorization check)
       const poolId = generatePoolId(currency0, currency1, poolKey.fee, poolKey.tickSpacing);
+      console.log('🆔 Final Pool ID for tracking:', poolId);
+      console.log('🔧 Pool parameters used:', {
+        currency0,
+        currency1,
+        fee: poolKey.fee,
+        tickSpacing: poolKey.tickSpacing
+      });
 
       return {
         poolKey,
@@ -276,11 +293,26 @@ export function useWagmiContracts() {
       // Generate poolId same way as contract does
       const poolId = generatePoolId(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing);
 
+      console.log('🔍 Checking authorization for pool:', {
+        poolId,
+        poolKey: {
+          currency0: poolKey.currency0,
+          currency1: poolKey.currency1,
+          fee: poolKey.fee,
+          tickSpacing: poolKey.tickSpacing
+        }
+      });
+
       const isAuthorized = await publicClient.readContract({
         address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
         abi: MARGIN_ROUTER_ABI,
         functionName: 'authorizedPools',
         args: [poolId as `0x${string}`]
+      });
+
+      console.log('🔍 Authorization check result:', {
+        poolId,
+        isAuthorized: isAuthorized as boolean
       });
 
       return isAuthorized as boolean;
@@ -297,9 +329,12 @@ export function useWagmiContracts() {
     }
 
     try {
+      const poolId = generatePoolId(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing);
+
       console.log('⚠️  Attempting manual pool authorization (owner only)...');
-      console.log('Pool Key:', poolKey);
-      console.log('Leverage Cap:', leverageCap);
+      console.log('🆔 Pool ID:', poolId);
+      console.log('🔧 Pool Key:', poolKey);
+      console.log('📊 Leverage Cap:', leverageCap);
 
       const tx = await writeContractAsync({
         address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
@@ -308,7 +343,25 @@ export function useWagmiContracts() {
         args: [poolKey, BigInt(leverageCap)]
       });
 
-      console.log('✅ Pool authorization successful:', tx);
+      console.log('✅ Pool authorization transaction sent:', tx);
+
+      // Wait for transaction to be mined
+      if (publicClient) {
+        console.log('⏳ Waiting for manual authorization transaction to be mined...');
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: tx,
+          timeout: 30000 // 30 second timeout
+        });
+        console.log('✅ Manual authorization transaction mined:', receipt.status);
+
+        // Small delay to ensure state is updated
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Verify authorization worked
+        const isAuthorized = await checkPoolAuthorization(poolKey);
+        console.log('🔍 Post-authorization verification:', isAuthorized);
+      }
+
       return tx;
     } catch (error) {
       console.error('❌ Pool authorization failed:', error);

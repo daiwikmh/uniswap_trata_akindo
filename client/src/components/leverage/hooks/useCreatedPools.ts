@@ -46,12 +46,7 @@ export function useCreatedPools() {
           });
           setPools(parsedPools);
 
-          // Auto-select the most recent pool if none selected
-          if (parsedPools.length > 0 && !selectedPool) {
-            const mostRecent = parsedPools.sort((a, b) => b.createdAt - a.createdAt)[0];
-            console.log('🎯 Auto-selecting most recent pool:', mostRecent.poolId);
-            setSelectedPool(mostRecent);
-          }
+          // Don't auto-select here to avoid dependency loops
         } else {
           console.log('📭 No pools found in localStorage');
         }
@@ -61,6 +56,7 @@ export function useCreatedPools() {
       }
     };
 
+    // Only load on mount
     loadPools();
 
     // Listen for pool updates from other components
@@ -71,18 +67,34 @@ export function useCreatedPools() {
 
     window.addEventListener('poolsUpdated', handlePoolsUpdated);
     return () => window.removeEventListener('poolsUpdated', handlePoolsUpdated);
-  }, [selectedPool]);
+  }, []); // Remove selectedPool dependency to prevent infinite loop
+
+  // Auto-select the most recent pool when pools load and no pool is selected
+  useEffect(() => {
+    if (pools.length > 0 && !selectedPool) {
+      const mostRecent = [...pools].sort((a, b) => b.createdAt - a.createdAt)[0];
+      console.log('🎯 Auto-selecting most recent pool:', mostRecent.poolId);
+      setSelectedPool(mostRecent);
+    }
+  }, [pools.length]); // Only trigger when pool count changes
 
   // Debug: Also log when address changes
   useEffect(() => {
     console.log('👤 Wallet address changed:', address);
   }, [address]);
 
-  // Save pools to localStorage whenever pools change
+  // Save pools to localStorage whenever pools change (with debouncing)
   useEffect(() => {
+    // Don't save immediately on mount when pools is empty initially
+    if (pools.length === 0) {
+      // Only save empty array if we previously had pools (user cleared them)
+      const existingData = localStorage.getItem(POOLS_STORAGE_KEY);
+      if (!existingData) return; // Don't overwrite if there's no existing data
+    }
+
     try {
       localStorage.setItem(POOLS_STORAGE_KEY, JSON.stringify(pools));
-      console.log('Saved', pools.length, 'pools to localStorage');
+      console.log('💾 Saved', pools.length, 'pools to localStorage');
     } catch (error) {
       console.error('Failed to save pools:', error);
     }

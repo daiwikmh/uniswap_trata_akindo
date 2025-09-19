@@ -1,7 +1,6 @@
 import React from 'react';
 import { LeverageTrading } from '../leverage';
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Pool: React.FC = () => {
   return (
