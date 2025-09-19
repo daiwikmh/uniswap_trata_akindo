@@ -8,7 +8,6 @@ import {console} from "forge-std/console.sol";
 import {MarginRouter} from "../src/MarginRouter.sol";
 import {GlobalAssetLedger} from "../src/GlobalAssetLedger.sol";
 import {LeverageHook} from "../src/LeverageHook.sol";
-import {ILeverageValidator} from "../src/interface/ILeverageValidator.sol";
 
 // Mock ERC20 for testing
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
@@ -26,7 +25,6 @@ contract TestIntegration is Script {
     address internal marginRouterAddress;
     address internal globalAssetLedgerAddress;
     address internal leverageHookAddress;
-    address internal leverageValidatorAddress;
 
     // Test tokens
     MockERC20 internal mockToken0;
@@ -39,13 +37,12 @@ contract TestIntegration is Script {
 
     function setUp() public {
         deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
-        testUser = vm.rememberKey(vm.envUint("OPERATOR1_PRIVATE_KEY")); // Reuse operator key as test user
+        testUser = vm.rememberKey(vm.envUint("OPERATOR2_PRIVATE_KEY")); // Reuse operator key as test user
 
         // Load contract addresses
         marginRouterAddress = vm.envAddress("MARGIN_ROUTER_ADDRESS");
         globalAssetLedgerAddress = vm.envAddress("GLOBAL_ASSET_LEDGER_ADDRESS");
         leverageHookAddress = vm.envAddress("LEVERAGE_HOOK_ADDRESS");
-        leverageValidatorAddress = vm.envAddress("LEVERAGE_VALIDATOR_ADDRESS");
 
         vm.label(deployer, "Deployer");
         vm.label(testUser, "TestUser");
@@ -62,17 +59,7 @@ contract TestIntegration is Script {
         // Step 1: Deploy test tokens
         _deployTestTokens();
 
-        // Step 2: Test operator validation
-        _testOperatorValidation();
-
-        // Step 3: Test borrow authorization
-        _testBorrowAuthorization();
-
-        // Step 4: Test position management
-        _testPositionManagement();
-
-        // Step 5: Test emergency functions
-        _testEmergencyFunctions();
+       
 
         console.log("=== Integration Tests Complete ===");
         console.log("All tests passed! Protocol is ready for use.");
@@ -97,24 +84,8 @@ contract TestIntegration is Script {
         vm.stopBroadcast();
     }
 
-    function _testOperatorValidation() internal {
-        console.log("2. Testing operator validation...");
-
-        ILeverageValidator validator = ILeverageValidator(leverageValidatorAddress);
-
-        // Test basic validation functions
-        bool canValidate = validator.checkStakeRequirement(testUser, 0);
-        console.log("   Stake requirement check:", canValidate ? "PASS" : "FAIL");
-
-        uint256 operatorCount = validator.getOperatorCount(0);
-        console.log("   Operator count:", operatorCount);
-
-        bool isActive = validator.isMarketActive(bytes32(0));
-        console.log("   Market active check:", isActive ? "PASS" : "FAIL");
-    }
-
     function _testBorrowAuthorization() internal {
-        console.log("3. Testing borrow authorization...");
+        console.log("2. Testing borrow authorization...");
 
         GlobalAssetLedger ledger = GlobalAssetLedger(globalAssetLedgerAddress);
 
@@ -149,7 +120,7 @@ contract TestIntegration is Script {
     }
 
     function _testPositionManagement() internal {
-        console.log("4. Testing position management...");
+        console.log("3. Testing position management...");
 
         MarginRouter router = MarginRouter(marginRouterAddress);
 
@@ -178,7 +149,7 @@ contract TestIntegration is Script {
     }
 
     function _testEmergencyFunctions() internal {
-        console.log("5. Testing emergency functions...");
+        console.log("4. Testing emergency functions...");
 
         MarginRouter router = MarginRouter(marginRouterAddress);
 

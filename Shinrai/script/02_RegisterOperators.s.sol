@@ -15,8 +15,8 @@ import {IAVSDirectory} from "eigenlayer-contracts/src/contracts/interfaces/IAVSD
 contract RegisterOperators is Script {
 
     // EigenLayer addresses (Holesky testnet)
-    address internal constant AVS_DIRECTORY = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
-    address internal constant DELEGATION_MANAGER = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+    address internal constant AVS_DIRECTORY = 0xa789c91ECDdae96865913130B786140Ee17aF545;
+    address internal constant DELEGATION_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b;
 
     address internal deployer;
     address internal operator1;

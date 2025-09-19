@@ -35,8 +35,8 @@ contract DeployCore is Script {
     address constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     // EigenLayer addresses (Holesky testnet) - Real deployed contracts
-    address internal constant AVS_DIRECTORY = 0x055733000064333CaDDbC92763c58BF0192fFeBf;
-    address internal constant DELEGATION_MANAGER = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+    address internal constant AVS_DIRECTORY = 0xa789c91ECDdae96865913130B786140Ee17aF545;
+    address internal constant DELEGATION_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b;
 
     function setUp() public {
         deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
@@ -144,7 +144,6 @@ contract DeployCore is Script {
             "MARGIN_ROUTER_ADDRESS=", vm.toString(address(marginRouter)), "\n"
         );
 
-        console.log("Contract addresses saved to deployed_addresses.txt");
     }
 }
 
