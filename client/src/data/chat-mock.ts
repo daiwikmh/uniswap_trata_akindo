@@ -182,7 +182,7 @@ const conversations: ChatConversation[] = [
     unreadCount: 0,
     lastMessage: {
       id: "msg-rampant-1",
-      content: "THE CLIENT WANTS THE LOGO BIGGER",
+      content: "Powel rocket the market man",
       timestamp: "2024-06-04T09:30:00Z",
       senderId: "rampant",
       isFromCurrentUser: false,
@@ -190,7 +190,7 @@ const conversations: ChatConversation[] = [
     messages: [
       {
         id: "msg-rampant-1",
-        content: "THE CLIENT WANTS THE LOGO BIGGER",
+        content: "Powel rocket the market man",
         timestamp: "2024-06-04T09:30:00Z",
         senderId: "rampant",
         isFromCurrentUser: false,

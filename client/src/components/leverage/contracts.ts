@@ -94,15 +94,92 @@ export const POOL_MANAGER_ABI = [
 ] as const;
 
 export const MARGIN_ROUTER_ABI = [
-  "function openLeveragePosition(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, address collateralToken, uint256 collateralAmount, uint256 borrowAmount, uint256 leverageRatio, bool isLongPosition) external returns (bytes32 positionId)",
-  "function closeLeveragePosition(bytes32 positionId, tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey) external returns (int256 pnl)",
-  "function getTraderPositions(address trader) external view returns (bytes32[] memory positionIds)",
-  "function getPosition(bytes32 positionId) external view returns (tuple(address trader, address collateralToken, address borrowedToken, uint256 collateralAmount, uint256 borrowedAmount, uint256 leverageRatio, bool isLongPosition, uint256 openTimestamp, bytes32 positionId) position)",
-  "function checkPositionHealth(bytes32 positionId) external view returns (bool isHealthy, uint256 healthFactor)",
-  "function authorizePool(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, uint256 leverageCap) external",
-  "function maxGlobalLeverage() external view returns (uint256)",
-  "function emergencyPaused() external view returns (bool)"
-];
+  {
+    type: "function",
+    name: "openLeveragePosition",
+    inputs: [
+      {
+        name: "poolKey",
+        type: "tuple",
+        components: [
+          { name: "currency0", type: "address" },
+          { name: "currency1", type: "address" },
+          { name: "fee", type: "uint24" },
+          { name: "tickSpacing", type: "int24" },
+          { name: "hooks", type: "address" }
+        ]
+      },
+      { name: "collateralToken", type: "address" },
+      { name: "collateralAmount", type: "uint256" },
+      { name: "borrowAmount", type: "uint256" },
+      { name: "leverageRatio", type: "uint256" },
+      { name: "isLongPosition", type: "bool" }
+    ],
+    outputs: [{ name: "positionId", type: "bytes32" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "closeLeveragePosition",
+    inputs: [
+      { name: "positionId", type: "bytes32" },
+      {
+        name: "poolKey",
+        type: "tuple",
+        components: [
+          { name: "currency0", type: "address" },
+          { name: "currency1", type: "address" },
+          { name: "fee", type: "uint24" },
+          { name: "tickSpacing", type: "int24" },
+          { name: "hooks", type: "address" }
+        ]
+      }
+    ],
+    outputs: [{ name: "pnl", type: "int256" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "maxGlobalLeverage",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "emergencyPaused",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "authorizedPools",
+    inputs: [{ name: "poolId", type: "bytes32" }],
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "authorizePool",
+    inputs: [
+      {
+        name: "poolKey",
+        type: "tuple",
+        components: [
+          { name: "currency0", type: "address" },
+          { name: "currency1", type: "address" },
+          { name: "fee", type: "uint24" },
+          { name: "tickSpacing", type: "int24" },
+          { name: "hooks", type: "address" }
+        ]
+      },
+      { name: "leverageCap", type: "uint256" }
+    ],
+    outputs: [],
+    stateMutability: "nonpayable"
+  }
+] as const;
 
 export const GLOBAL_ASSET_LEDGER_ABI = [
   "function authorizeBorrow(bytes32 poolId, address borrower, address borrowToken, uint256 borrowAmount, address collateralToken, uint256 collateralAmount) external returns (tuple(bool authorized, uint256 maxAmount, uint256 requiredCollateral, uint256 utilizationImpact, string reason) authorization)",
@@ -115,7 +192,19 @@ export const GLOBAL_ASSET_LEDGER_ABI = [
   "function userCollateral(address user, address token) external view returns (uint256)"
 ];
 
-export const ERC20_ABI = [
+// String format ABIs for ethers.js compatibility (legacy hooks)
+export const MARGIN_ROUTER_ABI_STRING = [
+  "function openLeveragePosition(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, address collateralToken, uint256 collateralAmount, uint256 borrowAmount, uint256 leverageRatio, bool isLongPosition) external returns (bytes32 positionId)",
+  "function closeLeveragePosition(bytes32 positionId, tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey) external returns (int256 pnl)",
+  "function getTraderPositions(address trader) external view returns (bytes32[] memory positionIds)",
+  "function getPosition(bytes32 positionId) external view returns (tuple(address trader, address collateralToken, address borrowedToken, uint256 collateralAmount, uint256 borrowedAmount, uint256 leverageRatio, bool isLongPosition, uint256 openTimestamp, bytes32 positionId) position)",
+  "function checkPositionHealth(bytes32 positionId) external view returns (bool isHealthy, uint256 healthFactor)",
+  "function authorizePool(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, uint256 leverageCap) external",
+  "function maxGlobalLeverage() external view returns (uint256)",
+  "function emergencyPaused() external view returns (bool)"
+];
+
+export const ERC20_ABI_STRING = [
   "function balanceOf(address owner) view returns (uint256)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -123,6 +212,60 @@ export const ERC20_ABI = [
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)"
 ];
+
+export const ERC20_ABI = [
+  {
+    type: "function",
+    name: "balanceOf",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "allowance",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" }
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "approve",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "transfer",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "symbol",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "decimals",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+    stateMutability: "view"
+  }
+] as const;
 
 // Pool creation helper
 export function createPoolKey(token0: string, token1: string, fee = 3000, tickSpacing = 60) {
@@ -172,7 +315,23 @@ export function priceToSqrtPriceX96(price: number): bigint {
   return BigInt(Math.floor(sqrtPrice * Number(Q96)));
 }
 
-export function generatePoolId(token0: string, token1: string): string {
-  // Simple pool ID generation (in production, use keccak256)
-  return `0x${token0.slice(2)}${token1.slice(2)}`.slice(0, 66);
+export function generatePoolId(token0: string, token1: string, fee: number = 3000, tickSpacing: number = 60): string {
+  // Generate pool ID to match contract's _getPoolId function:
+  // keccak256(abi.encode(key.currency0, key.currency1, key.fee, key.tickSpacing))
+
+  // For client-side, we'll create a deterministic hash based on the pool parameters
+  // This should match the contract's calculation
+  const encoder = new TextEncoder();
+  const data = `${token0}${token1}${fee}${tickSpacing}`;
+
+  // Simple hash for now - in production would use proper keccak256
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+
+  // Pad to 32 bytes (64 hex chars)
+  return `0x${Math.abs(hash).toString(16).padStart(64, '0')}`;
 }

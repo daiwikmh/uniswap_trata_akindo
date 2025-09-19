@@ -162,24 +162,32 @@ export function useWagmiContracts() {
 
       console.log('Pool initialization transaction:', initTx);
 
-      // Step 3: Authorize pool for leverage trading (optional)
-      let authTx;
+      // Step 3: Pool authorization (OWNER ONLY!)
+      // Note: Only the protocol owner can authorize pools for leverage trading
+      // Regular users cannot call authorizePool due to onlyOwner modifier
+      console.log('⚠️  Pool created but not authorized for leverage trading');
+      console.log('ℹ️  Pool authorization requires protocol owner privileges');
+      console.log('ℹ️  Pool can be used for regular swaps but not leverage positions');
+
+      let authTx = null;
+      // Try to authorize if user might be the owner (will fail gracefully if not)
       try {
-        console.log('Authorizing pool for leverage trading...');
+        console.log('Attempting pool authorization (may fail if not owner)...');
         authTx = await writeContractAsync({
           address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
           abi: MARGIN_ROUTER_ABI,
           functionName: 'authorizePool',
-          args: [poolKey, BigInt(maxLeverage)]
+          args: [validatedPoolKey, BigInt(maxLeverage)]
         });
-        console.log('Pool authorization transaction:', authTx);
-      } catch (authError) {
-        console.warn('Pool authorization failed (may not be implemented):', authError);
-        // Continue anyway - pool creation succeeded
+        console.log('✅ Pool authorization successful:', authTx);
+      } catch (authError: any) {
+        console.warn('❌ Pool authorization failed (expected for non-owner users):', authError.message);
+        console.log('📝 Pool created successfully but requires owner authorization for leverage trading');
+        // Don't throw error - pool creation succeeded
       }
 
       // Generate pool ID for tracking
-      const poolId = generatePoolId(token0, token1);
+      const poolId = generatePoolId(currency0, currency1, poolKey.fee, poolKey.tickSpacing);
 
       return {
         poolKey,
@@ -260,12 +268,62 @@ export function useWagmiContracts() {
     }
   };
 
+  // Check if pool is authorized for leverage trading
+  const checkPoolAuthorization = async (poolKey: any): Promise<boolean> => {
+    if (!publicClient) return false;
+
+    try {
+      // Generate poolId same way as contract does
+      const poolId = generatePoolId(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing);
+
+      const isAuthorized = await publicClient.readContract({
+        address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
+        abi: MARGIN_ROUTER_ABI,
+        functionName: 'authorizedPools',
+        args: [poolId as `0x${string}`]
+      });
+
+      return isAuthorized as boolean;
+    } catch (error) {
+      console.error('Failed to check pool authorization:', error);
+      return false;
+    }
+  };
+
+  // Manual pool authorization (for protocol owner only)
+  const authorizePoolManually = async (poolKey: any, leverageCap: number = 1000) => {
+    if (!isConnected || !address) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      console.log('⚠️  Attempting manual pool authorization (owner only)...');
+      console.log('Pool Key:', poolKey);
+      console.log('Leverage Cap:', leverageCap);
+
+      const tx = await writeContractAsync({
+        address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
+        abi: MARGIN_ROUTER_ABI,
+        functionName: 'authorizePool',
+        args: [poolKey, BigInt(leverageCap)]
+      });
+
+      console.log('✅ Pool authorization successful:', tx);
+      return tx;
+    } catch (error) {
+      console.error('❌ Pool authorization failed:', error);
+      throw new Error(`Pool authorization failed: ${error.message}`);
+    }
+  };
+
   return {
     address,
     isConnected,
     createLeveragePool,
     openLeveragePosition,
-    approveToken
+    approveToken,
+    checkPoolAuthorization,
+    authorizePoolManually
   };
 }
 

@@ -4,9 +4,9 @@ import { ethers } from 'ethers';
 import {
   SHINRAI_CONTRACTS,
   NETWORK_CONFIG,
-  MARGIN_ROUTER_ABI,
+  MARGIN_ROUTER_ABI_STRING as MARGIN_ROUTER_ABI,
   GLOBAL_ASSET_LEDGER_ABI,
-  ERC20_ABI,
+  ERC20_ABI_STRING as ERC20_ABI,
   createPoolKey,
   type LeveragePosition,
   type BorrowAuthorization

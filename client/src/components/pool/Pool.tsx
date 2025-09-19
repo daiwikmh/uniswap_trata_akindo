@@ -1,16 +1,22 @@
-// Pool Component - Entry point for leverage trading
 import React from 'react';
 import { LeverageTrading } from '../leverage';
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/**
- * Pool Component
- * Main entry point for the leverage trading interface
- * Accessible via /leverage route
- */
 const Pool: React.FC = () => {
   return (
-    <div className="w-full">
-      <LeverageTrading />
+    <div className="container mx-auto p-6">
+      <Card className="bg-card">
+        <div className="p-6">
+          <h1 className="text-3xl font-bold mb-6">Leverage Trading Platform</h1>
+          
+         
+            
+
+          
+              <LeverageTrading />
+        </div>
+      </Card>
     </div>
   );
 };

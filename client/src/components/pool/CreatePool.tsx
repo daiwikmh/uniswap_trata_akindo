@@ -24,7 +24,8 @@ async function createPoolOnServer(pool: Pool) {
   return apiPost("/pools", pool);
 }
 
-export default function CreatePool() {
+// Add default export
+const CreatePool: React.FC = () => {
   const [poolName, setPoolName] = useState("");
   const [token0, setToken0] = useState<Token>({
     chainId: 1,
@@ -240,3 +241,5 @@ export default function CreatePool() {
     </div>
   );
 }
+
+export default CreatePool;

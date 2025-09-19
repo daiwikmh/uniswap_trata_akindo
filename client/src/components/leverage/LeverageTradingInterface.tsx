@@ -1,4 +1,4 @@
-// Leverage Trading Interface for the created pool
+import { useCreatedPools } from './hooks/useCreatedPools';
 import React, { useState, useEffect } from 'react';
 import { parseEther, formatEther, isAddress } from 'viem';
 import {
@@ -10,7 +10,7 @@ import { usePoolData, useLeveragePositions } from './hooks/usePoolData';
 import { SHINRAI_CONTRACTS } from './contracts';
 
 interface LeverageTradingInterfaceProps {
-  poolKey: any;
+  poolKey?: any; // Made optional - will use created pools if not provided
   poolId?: string;
   className?: string;
 }
@@ -25,23 +25,63 @@ interface TradeParams {
 }
 
 export const LeverageTradingInterface: React.FC<LeverageTradingInterfaceProps> = ({
-  poolKey,
+  poolKey: providedPoolKey,
   poolId,
   className = ""
 }) => {
   const { openLeveragePosition, approveToken, isConnected } = useWagmiContracts();
+
+  // Use created pools if no poolKey is provided
+  const { pools, selectedPool, setSelectedPool } = useCreatedPools();
+  const [selectedPoolId, setSelectedPoolId] = useState<string>('');
+
+  // Determine which pool to use
+  const currentPool = providedPoolKey
+    ? { poolKey: providedPoolKey }
+    : selectedPoolId
+      ? pools.find(p => p.poolId === selectedPoolId)
+      : selectedPool;
+
+  const poolKey = currentPool?.poolKey;
+
   const { poolData } = usePoolData(poolKey);
   const { positions, totalPositions } = useLeveragePositions(poolKey);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔄 LeverageTradingInterface state:', {
+      providedPoolKey: !!providedPoolKey,
+      poolsAvailable: pools.length,
+      selectedPoolId,
+      currentPool: currentPool ? 'found' : 'none',
+      poolKey: poolKey ? 'available' : 'missing'
+    });
+  }, [providedPoolKey, pools.length, selectedPoolId, currentPool, poolKey]);
+
   // Trading state
   const [tradeParams, setTradeParams] = useState<TradeParams>({
-    collateralToken: poolKey?.currency0 || '',
+    collateralToken: '',
     collateralAmount: '',
-    borrowToken: poolKey?.currency1 || '',
+    borrowToken: '',
     leverageRatio: 200, // 2x
     isLongPosition: true,
     slippagePercent: 0.5
   });
+
+  // Update trade params when pool changes
+  useEffect(() => {
+    if (poolKey) {
+      setTradeParams(prev => ({
+        ...prev,
+        collateralToken: poolKey.currency0 || '',
+        borrowToken: poolKey.currency1 || ''
+      }));
+      console.log('🔄 Updated trade params with pool tokens:', {
+        currency0: poolKey.currency0,
+        currency1: poolKey.currency1
+      });
+    }
+  }, [poolKey]);
 
   const [isTrading, setIsTrading] = useState(false);
   const [tradeStep, setTradeStep] = useState<'input' | 'approve' | 'confirm' | 'pending'>('input');
@@ -171,11 +211,15 @@ export const LeverageTradingInterface: React.FC<LeverageTradingInterfaceProps> =
 
   const isFormValid = validationErrors.length === 0 && isConnected && tradeParams.collateralAmount;
 
-  if (!poolKey) {
+  // Show pool selection if no pool is available and there are created pools
+  if (!poolKey && pools.length === 0) {
     return (
       <div className={`bg-muted rounded-lg p-6 text-center ${className}`}>
         <Info className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-        <p className="text-muted-foreground">No pool available for trading</p>
+        <p className="text-muted-foreground">No pools available for trading</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Create a pool first in the "Create Pools" tab
+        </p>
       </div>
     );
   }
@@ -202,6 +246,31 @@ export const LeverageTradingInterface: React.FC<LeverageTradingInterfaceProps> =
           )}
         </div>
       </div>
+
+      {/* Pool Selection - only show if no poolKey provided and pools are available */}
+      {!providedPoolKey && pools.length > 0 && (
+        <div className="p-4 bg-secondary/5 border-b">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Select Trading Pool</h4>
+            <select
+              value={selectedPoolId}
+              onChange={(e) => setSelectedPoolId(e.target.value)}
+              className="w-full p-3 border rounded-lg bg-background"
+            >
+              <option value="">Choose a pool...</option>
+              {pools.map((pool) => (
+                <option key={pool.poolId} value={pool.poolId}>
+                  {pool.name} (Fee: {pool.poolKey.fee / 10000}%)
+                </option>
+              ))}
+            </select>
+            <div className="text-xs text-muted-foreground">
+              Pools available: {pools.length} |
+              Current: {currentPool ? (currentPool as any).name || 'Selected' : 'None'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pool Status */}
       {poolData && (

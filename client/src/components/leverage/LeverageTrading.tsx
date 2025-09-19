@@ -23,6 +23,7 @@ interface TokenInfo {
   symbol: string;
   balance: bigint;
   allowance: bigint;
+  decimals: number;
 }
 
 const LeverageTrading: React.FC = () => {
@@ -68,7 +69,8 @@ const LeverageTrading: React.FC = () => {
   // Wagmi contracts for pool-based trading
   const {
     openLeveragePosition: openLeveragePositionWagmi,
-    approveToken: approveTokenWagmi
+    approveToken: approveTokenWagmi,
+    checkPoolAuthorization
   } = useWagmiContracts();
 
   // Helper function to get token symbol
@@ -82,6 +84,19 @@ const LeverageTrading: React.FC = () => {
     }
   }, [getTokenContract]);
 
+  // Helper function to get token decimals
+  const getTokenDecimals = useCallback(async (tokenAddress: string): Promise<number> => {
+    const contract = getTokenContract(tokenAddress);
+    if (!contract) return 18; // Default to 18 decimals
+    try {
+      const decimals = await contract.decimals();
+      return typeof decimals === 'bigint' ? Number(decimals) : decimals;
+    } catch (error) {
+      console.warn(`Failed to get decimals for ${tokenAddress}:`, error);
+      return 18; // Default to 18 decimals
+    }
+  }, [getTokenContract]);
+
   const {
     maxLeverage,
     isPaused
@@ -92,17 +107,22 @@ const LeverageTrading: React.FC = () => {
 
   // Debug: Log pools data when it changes
   useEffect(() => {
-    if (pools.length > 0) {
-      console.log('🏊 Available pools in LeverageTrading:', pools.map(p => ({
+    console.log('🏊 Pools state updated in LeverageTrading:', {
+      poolsCount: pools.length,
+      pools: pools.map(p => ({
         name: p.name,
         poolId: p.poolId.slice(0, 10) + '...',
         currency0: p.poolKey.currency0,
         currency1: p.poolKey.currency1,
         fee: p.poolKey.fee,
         createdAt: new Date(p.createdAt).toLocaleString()
-      })));
-    }
-  }, [pools]);
+      })),
+      selectedPool: selectedPool ? {
+        name: selectedPool.name,
+        poolId: selectedPool.poolId.slice(0, 10) + '...'
+      } : null
+    });
+  }, [pools, selectedPool]);
 
   // Component state
   const [activeTab, setActiveTab] = useState<'trade' | 'positions' | 'pools'>('trade');
@@ -125,8 +145,29 @@ const LeverageTrading: React.FC = () => {
       // Auto-select the pool tokens
       setSelectedToken0(currentPool.poolKey.currency0);
       setSelectedToken1(currentPool.poolKey.currency1);
+      console.log('🔄 Auto-selected tokens from pool:', {
+        token0: currentPool.poolKey.currency0,
+        token1: currentPool.poolKey.currency1,
+        poolName: currentPool.name
+      });
     }
   }, [selectedPoolForTrading, selectedPool, pools]);
+
+  // Force refresh when tab becomes active and listen for pool updates
+  useEffect(() => {
+    if (activeTab === 'trade') {
+      console.log('🔄 Trade tab activated, current pools:', pools.length);
+    }
+
+    // Listen for pool updates from pool creator
+    const handlePoolsUpdated = () => {
+      console.log('🔄 LeverageTrading received poolsUpdated event');
+      // The useCreatedPools hook will automatically reload
+    };
+
+    window.addEventListener('poolsUpdated', handlePoolsUpdated);
+    return () => window.removeEventListener('poolsUpdated', handlePoolsUpdated);
+  }, [activeTab, pools]);
 
   // Load token information
   useEffect(() => {
@@ -168,11 +209,15 @@ const LeverageTrading: React.FC = () => {
             else symbol = `TOKEN_${address.slice(0, 6)}`;
           }
 
+          // Get token decimals
+          const decimals = await getTokenDecimals(address);
+
           tokenInfo[address] = {
             address,
             symbol,
             balance,
-            allowance
+            allowance,
+            decimals
           };
         } catch (error) {
           console.error(`Failed to load token info for ${address}:`, error);
@@ -233,29 +278,64 @@ const LeverageTrading: React.FC = () => {
         return;
       }
 
-      // Check and approve tokens if needed (use Wagmi for consistency)
+      // Check if pool is authorized for leverage trading
+      console.log('Checking pool authorization...');
+      const isPoolAuthorized = await checkPoolAuthorization(poolForTrading.poolKey);
+      console.log('Pool authorization status:', isPoolAuthorized);
+
+      if (!isPoolAuthorized) {
+        alert(`❌ Pool Not Authorized for Leverage Trading\n\n` +
+              `This pool has not been authorized by the protocol owner.\n\n` +
+              `Options:\n` +
+              `• Contact protocol admin for pool authorization\n` +
+              `• Use the pool for regular swaps (not leverage)\n` +
+              `• Wait for protocol owner to authorize this pool`);
+        return;
+      }
+
+      // Check and approve tokens if needed (use legacy ethers for now to avoid ABI issues)
       const currentAllowance = tokens[collateralToken]?.allowance || BigInt(0);
       if (currentAllowance < collateralBigInt) {
-        console.log('Approving token with Wagmi...');
-        await approveTokenWagmi(
-          collateralToken as `0x${string}`,
-          SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
-          collateralAmount
-        );
+        console.log('Approving token with legacy ethers approach...');
+        await approveToken(collateralToken, SHINRAI_CONTRACTS.MARGIN_ROUTER, collateralBigInt);
+
+        // Wait a moment for the approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       // Open position using the selected pool's poolKey
       console.log('Opening position with pool data...');
-      const tx = await openLeveragePositionWagmi(
-        poolForTrading.poolKey,
-        collateralToken as `0x${string}`,
+      console.log('Final parameters:', {
+        poolKey: poolForTrading.poolKey,
+        collateralToken,
         collateralAmount,
-        ethers.formatEther(borrowAmount),
+        borrowAmount: ethers.formatEther(borrowAmount),
         leverageRatio,
-        tradeType === 'long'
-      );
+        isLongPosition: tradeType === 'long'
+      });
 
-      console.log('Position opened successfully:', tx);
+      try {
+        const tx = await openLeveragePositionWagmi(
+          poolForTrading.poolKey,
+          collateralToken as `0x${string}`,
+          collateralAmount,
+          ethers.formatEther(borrowAmount),
+          leverageRatio,
+          tradeType === 'long'
+        );
+
+        console.log('Position opened successfully:', tx);
+        alert('Leverage position opened successfully! 🎉');
+      } catch (positionError) {
+        console.error('Position opening error details:', positionError);
+
+        // Check if it's an authorization error
+        if (positionError.message.includes('not authorized') || positionError.message.includes('Pool not authorized')) {
+          throw new Error('Pool not authorized for leverage trading. Please try recreating the pool.');
+        }
+
+        throw positionError;
+      }
 
       // Reset form
       setCollateralAmount('');
@@ -390,20 +470,51 @@ const LeverageTrading: React.FC = () => {
                   <label className="block text-sm font-medium mb-2">Trading Pool</label>
                   {pools.length === 0 ? (
                     <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-                      No pools available. Create a pool first in the "Create Pools" tab.
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="font-medium">No pools available</span>
+                      </div>
+                      <div>Create a pool first in the "Create Pools" tab to start trading.</div>
                     </div>
                   ) : (
-                    <select
-                      value={selectedPoolForTrading || selectedPool?.poolId || ''}
-                      onChange={(e) => setSelectedPoolForTrading(e.target.value || null)}
-                      className="w-full p-3 border rounded-lg bg-background"
-                    >
-                      {pools.map((pool) => (
-                        <option key={pool.poolId} value={pool.poolId}>
-                          {pool.name} (Fee: {pool.poolKey.fee / 10000}%)
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <select
+                          value={selectedPoolForTrading || selectedPool?.poolId || ''}
+                          onChange={(e) => setSelectedPoolForTrading(e.target.value || null)}
+                          className="flex-1 p-3 border rounded-lg bg-background"
+                        >
+                          {pools.map((pool) => (
+                            <option key={pool.poolId} value={pool.poolId}>
+                              {pool.name} (Fee: {pool.poolKey.fee / 10000}%)
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            console.log('🔄 Manual refresh triggered');
+                            window.dispatchEvent(new Event('poolsUpdated'));
+                          }}
+                          className="px-3 py-2 text-xs border rounded-lg hover:bg-secondary transition-colors"
+                          title="Refresh pools data"
+                        >
+                          🔄
+                        </button>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 bg-success rounded-full"></span>
+                          <span>{pools.length} pool{pools.length !== 1 ? 's' : ''} loaded</span>
+                        </div>
+                        <div>⚠️ Note: Pools require protocol owner authorization for leverage trading</div>
+                        {selectedPool && (
+                          <div className="font-mono text-xs bg-secondary p-2 rounded mt-2">
+                            Selected: {selectedPool.name}<br/>
+                            Pool ID: {selectedPool.poolId.slice(0, 16)}...
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -597,13 +708,38 @@ const LeverageTrading: React.FC = () => {
               </div>
 
               {/* Show pool information if available */}
-              {pools.length > 0 && (
-                <div className="bg-card p-6 rounded-lg border">
-                  <h3 className="text-xl font-semibold mb-4">Available Pools ({pools.length})</h3>
+              <div className="bg-card p-6 rounded-lg border">
+                <h3 className="text-xl font-semibold mb-4">
+                  {pools.length > 0 ? `Available Pools (${pools.length})` : 'Pool Status'}
+                </h3>
+
+                {pools.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Waves className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <div className="text-muted-foreground mb-2">No pools created yet</div>
+                    <div className="text-sm text-muted-foreground">
+                      Switch to "Create Pools" tab to create your first pool
+                    </div>
+                  </div>
+                ) : (
                   <div className="space-y-3">
-                    {pools.slice(0, 3).map((pool) => (
-                      <div key={pool.poolId} className="p-3 bg-secondary rounded-lg">
-                        <div className="font-medium text-sm mb-1">{pool.name || 'Unnamed Pool'}</div>
+                    {pools.slice(0, 3).map((pool, index) => (
+                      <div
+                        key={pool.poolId}
+                        className={`p-3 rounded-lg border ${
+                          selectedPool?.poolId === pool.poolId
+                            ? 'bg-primary/10 border-primary/20'
+                            : 'bg-secondary border-border'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-medium text-sm">{pool.name || 'Unnamed Pool'}</div>
+                          {selectedPool?.poolId === pool.poolId && (
+                            <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                              Selected
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground mb-2">
                           <div>Token 0: {pool.poolKey.currency0.slice(0, 6)}...{pool.poolKey.currency0.slice(-4)}</div>
                           <div>Token 1: {pool.poolKey.currency1.slice(0, 6)}...{pool.poolKey.currency1.slice(-4)}</div>
@@ -615,13 +751,13 @@ const LeverageTrading: React.FC = () => {
                       </div>
                     ))}
                     {pools.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center">
-                        +{pools.length - 3} more pools
+                      <div className="text-xs text-muted-foreground text-center py-2 border-t border-border">
+                        +{pools.length - 3} more pools available
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}

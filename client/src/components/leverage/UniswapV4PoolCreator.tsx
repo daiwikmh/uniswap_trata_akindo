@@ -266,22 +266,35 @@ export const UniswapV4PoolCreator: React.FC = () => {
       setCreatedPool(result);
 
       // Store the created pool for future use
-      const storedPool = addPool(result);
+      const normalizedResult = {
+        poolId: result.poolId,
+        poolKey: result.poolKey,
+        sqrtPriceX96: result.sqrtPriceX96,
+        transactions: {
+          initialize: result.transactions.initialize,
+          authorize: result.transactions.authorize || undefined
+        }
+      };
+
+      console.log('📝 Preparing to store pool data:', normalizedResult);
+
+      const storedPool = addPool(normalizedResult);
       if (storedPool) {
         console.log('✅ Pool created and stored successfully!', {
-          poolId: result.poolId,
+          poolId: normalizedResult.poolId,
           storedPool
         });
+
+        // Force a re-render to update UI immediately
+        setTimeout(() => {
+          console.log('🔄 Triggering pool list refresh...');
+          window.dispatchEvent(new Event('poolsUpdated'));
+        }, 100);
+      } else {
+        console.warn('⚠️ Pool was not stored properly');
       }
-
-      console.log('✅ Pool created successfully!', result);
-
     } catch (error) {
       console.error('Pool creation failed:', error);
-      updateStep(currentStep, 'error');
-      alert(`Pool creation failed: ${error}`);
-    } finally {
-      setIsCreating(false);
     }
   };
 

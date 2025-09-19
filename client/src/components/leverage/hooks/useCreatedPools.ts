@@ -25,31 +25,58 @@ export function useCreatedPools() {
   const [pools, setPools] = useState<StoredPool[]>([]);
   const [selectedPool, setSelectedPool] = useState<StoredPool | null>(null);
 
-  // Load pools from localStorage on mount
+  // Load pools from localStorage on mount and when updated
   useEffect(() => {
     const loadPools = () => {
       try {
+        console.log('🔍 Loading pools from localStorage with key:', POOLS_STORAGE_KEY);
         const stored = localStorage.getItem(POOLS_STORAGE_KEY);
+        console.log('📦 Raw localStorage data:', stored);
+
         if (stored) {
           const parsedPools: StoredPool[] = JSON.parse(stored);
-          console.log('Loaded pools from localStorage:', parsedPools.length, 'pools');
+          console.log('✅ Loaded pools from localStorage:', {
+            count: parsedPools.length,
+            pools: parsedPools.map(p => ({
+              name: p.name,
+              poolId: p.poolId.slice(0, 10) + '...',
+              createdBy: p.createdBy,
+              createdAt: new Date(p.createdAt).toLocaleString()
+            }))
+          });
           setPools(parsedPools);
 
           // Auto-select the most recent pool if none selected
-          if (parsedPools.length > 0) {
+          if (parsedPools.length > 0 && !selectedPool) {
             const mostRecent = parsedPools.sort((a, b) => b.createdAt - a.createdAt)[0];
-            console.log('Auto-selecting most recent pool:', mostRecent.poolId);
+            console.log('🎯 Auto-selecting most recent pool:', mostRecent.poolId);
             setSelectedPool(mostRecent);
           }
+        } else {
+          console.log('📭 No pools found in localStorage');
         }
       } catch (error) {
-        console.error('Failed to load stored pools:', error);
+        console.error('❌ Failed to load stored pools:', error);
         setPools([]);
       }
     };
 
     loadPools();
-  }, []);
+
+    // Listen for pool updates from other components
+    const handlePoolsUpdated = () => {
+      console.log('🔄 Received poolsUpdated event, reloading...');
+      loadPools();
+    };
+
+    window.addEventListener('poolsUpdated', handlePoolsUpdated);
+    return () => window.removeEventListener('poolsUpdated', handlePoolsUpdated);
+  }, [selectedPool]);
+
+  // Debug: Also log when address changes
+  useEffect(() => {
+    console.log('👤 Wallet address changed:', address);
+  }, [address]);
 
   // Save pools to localStorage whenever pools change
   useEffect(() => {
@@ -68,7 +95,12 @@ export function useCreatedPools() {
     sqrtPriceX96: string;
     transactions: { initialize: string; authorize?: string };
   }) => {
-    if (!address) return null;
+    console.log('🔄 addPool called with:', poolData);
+
+    if (!address) {
+      console.warn('❌ Cannot add pool: no address connected');
+      return null;
+    }
 
     const newPool: StoredPool = {
       poolId: poolData.poolId,
@@ -86,20 +118,23 @@ export function useCreatedPools() {
       name: `Pool ${poolData.poolKey.currency0.slice(0, 6)}.../${poolData.poolKey.currency1.slice(0, 6)}...`
     };
 
+    console.log('📝 Creating new pool object:', newPool);
+
     setPools(prev => {
       // Check if pool already exists
       const exists = prev.some(p => p.poolId === newPool.poolId);
       if (exists) {
-        console.log('Pool already exists:', newPool.poolId);
+        console.log('⚠️  Pool already exists:', newPool.poolId);
         return prev;
       }
 
       const updated = [newPool, ...prev];
-      console.log('Added new pool:', newPool);
+      console.log('✅ Added new pool. Updated pools list:', updated);
       return updated;
     });
 
     // Auto-select the new pool
+    console.log('🎯 Auto-selecting new pool:', newPool.poolId);
     setSelectedPool(newPool);
     return newPool;
   }, [address]);
@@ -143,7 +178,7 @@ export function useCreatedPools() {
     localStorage.removeItem(POOLS_STORAGE_KEY);
   }, []);
 
-  return {
+   return {
     pools: allPools,
     userPools,
     selectedPool,
@@ -152,7 +187,7 @@ export function useCreatedPools() {
     removePool,
     updatePoolName,
     clearPools,
-    hasSelectedPool: !!selectedPool
+    hasSelectedPool: !!selectedPool,
   };
 }
 
