@@ -4,6 +4,7 @@ import { parseEther, formatEther, isAddress } from 'viem';
 import { Plus, Waves, Settings, Droplets, AlertCircle, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
 import { useWagmiConnection, useWagmiContracts, useTokenInfo, useProtocolState } from './hooks/useWagmiContracts';
 import { useWalletTokens } from './hooks/useWalletTokens';
+import { useCreatedPools } from './hooks/useCreatedPools';
 import { SHINRAI_CONTRACTS, PROTOCOL_CONFIG } from './contracts';
 
 interface PoolCreationStep {
@@ -17,8 +18,8 @@ export const UniswapV4PoolCreator: React.FC = () => {
   // Wagmi hooks
   const { address, isConnected, connectWallet, disconnect } = useWagmiConnection();
   const { createLeveragePool, approveToken } = useWagmiContracts();
-  const { maxLeverage, isPaused } = useProtocolState();
   const { allTokens, isLoading: tokensLoading, addCustomToken } = useWalletTokens();
+  const { addPool, pools, selectedPool } = useCreatedPools();
 
   // Form state
   const [token0Address, setToken0Address] = useState<`0x${string}` | ''>('');
@@ -263,6 +264,16 @@ export const UniswapV4PoolCreator: React.FC = () => {
       updateStep(5, 'completed');
 
       setCreatedPool(result);
+
+      // Store the created pool for future use
+      const storedPool = addPool(result);
+      if (storedPool) {
+        console.log('✅ Pool created and stored successfully!', {
+          poolId: result.poolId,
+          storedPool
+        });
+      }
+
       console.log('✅ Pool created successfully!', result);
 
     } catch (error) {

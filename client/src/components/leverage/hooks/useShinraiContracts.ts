@@ -220,15 +220,20 @@ export function useTokenOperations(signer: ethers.JsonRpcSigner | null) {
     return new ethers.Contract(tokenAddress, ERC20_ABI, signer);
   }, [signer]);
 
-  // Get token balance
+  // Get token balance (with silent error handling for non-existent tokens)
   const getTokenBalance = useCallback(async (tokenAddress: string, userAddress: string) => {
     const contract = getTokenContract(tokenAddress);
     if (!contract) return BigInt(0);
 
     try {
       return await contract.balanceOf(userAddress);
-    } catch (error) {
-      console.error('Failed to get token balance:', error);
+    } catch (error: any) {
+      // Silent handling for non-existent tokens (0x result)
+      if (error?.code === 'BAD_DATA' && error?.value === '0x') {
+        return BigInt(0);
+      }
+      // Log other types of errors but still return 0
+      console.warn('Token balance check failed (token may not exist):', tokenAddress.slice(0, 10) + '...');
       return BigInt(0);
     }
   }, [getTokenContract]);
@@ -242,15 +247,20 @@ export function useTokenOperations(signer: ethers.JsonRpcSigner | null) {
     return await tx.wait();
   }, [getTokenContract]);
 
-  // Check allowance
+  // Check allowance (with silent error handling for non-existent tokens)
   const checkAllowance = useCallback(async (tokenAddress: string, ownerAddress: string, spenderAddress: string) => {
     const contract = getTokenContract(tokenAddress);
     if (!contract) return BigInt(0);
 
     try {
       return await contract.allowance(ownerAddress, spenderAddress);
-    } catch (error) {
-      console.error('Failed to check allowance:', error);
+    } catch (error: any) {
+      // Silent handling for non-existent tokens (0x result)
+      if (error?.code === 'BAD_DATA' && error?.value === '0x') {
+        return BigInt(0);
+      }
+      // Log other types of errors but still return 0
+      console.warn('Token allowance check failed (token may not exist):', tokenAddress.slice(0, 10) + '...');
       return BigInt(0);
     }
   }, [getTokenContract]);

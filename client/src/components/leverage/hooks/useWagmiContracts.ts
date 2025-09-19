@@ -1,9 +1,9 @@
 // Wagmi-based contract hooks for Shinrai Protocol
 import { useState, useEffect } from 'react';
-import { useAccount, useConnect, useDisconnect, useWriteContract, useReadContract } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useWriteContract, useReadContract, usePublicClient } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import { parseEther, formatEther, encodeFunctionData } from 'viem';
-import { holesky } from 'wagmi/chains';
+import { sepolia } from 'wagmi/chains';
 import {
   SHINRAI_CONTRACTS,
   PROTOCOL_CONFIG,
@@ -28,7 +28,7 @@ export function useWagmiConnection() {
     try {
       const metaMaskConnector = connectors.find(connector => connector.name === 'MetaMask');
       if (metaMaskConnector) {
-        await connect({ connector: metaMaskConnector, chainId: holesky.id });
+        await connect({ connector: metaMaskConnector, chainId: sepolia.id });
       }
     } catch (error) {
       console.error('Connection failed:', error);
@@ -36,13 +36,13 @@ export function useWagmiConnection() {
     }
   };
 
-  const isOnHolesky = chainId === holesky.id;
+  const isOnSepolia = chainId === sepolia.id;
 
   return {
     address,
-    isConnected: isConnected && isOnHolesky,
+    isConnected: isConnected && isOnSepolia,
     chainId,
-    isOnHolesky,
+    isOnSepolia,
     connectWallet,
     disconnect
   };
@@ -52,6 +52,7 @@ export function useWagmiConnection() {
 export function useWagmiContracts() {
   const { address, isConnected } = useWagmiConnection();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
   // Create leverage pool with Uniswap V4 pattern
   const createLeveragePool = async (
@@ -67,25 +68,96 @@ export function useWagmiContracts() {
 
     try {
       // Step 1: Create PoolKey with LeverageHook
+      // Ensure proper token ordering - uint160(currency0) < uint160(currency1) as per Uniswap V4 docs
+      const token0Uint = BigInt(token0);
+      const token1Uint = BigInt(token1);
+      const [currency0, currency1] = token0Uint < token1Uint
+        ? [token0, token1]
+        : [token1, token0];
+
       const poolKey = {
-        currency0: token0,
-        currency1: token1,
-        fee: 3000, // 0.3%
-        tickSpacing: 60,
-        hooks: SHINRAI_CONTRACTS.LEVERAGE_HOOK as `0x${string}`
+        currency0: currency0 as `0x${string}`,
+        currency1: currency1 as `0x${string}`,
+        fee: 3000, // 0.3% fee in pips as per Uniswap V4 docs
+        tickSpacing: 60, // Granularity - per Uniswap V4 docs
+        hooks: "0x0000000000000000000000000000000000000000" as `0x${string}` // No hook - using official PoolManager
       };
 
       console.log('Creating pool with LeverageHook:', poolKey);
 
       // Step 2: Initialize Uniswap V4 Pool (following V4 docs)
       const sqrtPriceX96 = priceToSqrtPriceX96(parseFloat(initialPrice));
-      console.log('Initializing Uniswap V4 pool with price:', initialPrice, 'sqrtPriceX96:', sqrtPriceX96.toString());
+      console.log('=== Pool Initialization Debug ===');
+      console.log('PoolManager Address:', SHINRAI_CONTRACTS.POOL_MANAGER);
+      console.log('Initial Price:', initialPrice);
+      console.log('Calculated sqrtPriceX96:', sqrtPriceX96.toString());
+      console.log('PoolKey Structure:', {
+        currency0: poolKey.currency0,
+        currency1: poolKey.currency1,
+        fee: poolKey.fee,
+        tickSpacing: poolKey.tickSpacing,
+        hooks: poolKey.hooks
+      });
 
+      // Verify PoolKey structure
+      if (!poolKey.currency0 || !poolKey.currency1 || !poolKey.hooks) {
+        throw new Error('Invalid PoolKey: missing required fields');
+      }
+
+      // Step 2.1: Initialize the pool directly (PoolManager verification happens in transaction)
+      console.log('Note: PoolManager at:', SHINRAI_CONTRACTS.POOL_MANAGER);
+      console.log('LeverageHook at:', SHINRAI_CONTRACTS.LEVERAGE_HOOK);
+
+      // Step 2.2: Validate all parameters before contract call
+      console.log('=== Pre-Contract Call Validation ===');
+      console.log('PoolManager Address Valid:', /^0x[a-fA-F0-9]{40}$/.test(SHINRAI_CONTRACTS.POOL_MANAGER));
+      console.log('Currency0 Valid:', /^0x[a-fA-F0-9]{40}$/.test(poolKey.currency0));
+      console.log('Currency1 Valid:', /^0x[a-fA-F0-9]{40}$/.test(poolKey.currency1));
+      console.log('Currency Ordering Valid:', BigInt(poolKey.currency0) < BigInt(poolKey.currency1));
+      console.log('Hooks Valid:', /^0x[a-fA-F0-9]{40}$/.test(poolKey.hooks));
+      console.log('Fee Type:', typeof poolKey.fee, poolKey.fee);
+      console.log('TickSpacing Type:', typeof poolKey.tickSpacing, poolKey.tickSpacing);
+      console.log('SqrtPriceX96 Type:', typeof sqrtPriceX96, sqrtPriceX96.toString());
+
+      // Ensure all types are correct
+      const validatedPoolKey = {
+        currency0: poolKey.currency0,
+        currency1: poolKey.currency1,
+        fee: Number(poolKey.fee),
+        tickSpacing: Number(poolKey.tickSpacing),
+        hooks: poolKey.hooks
+      };
+
+      console.log('Validated PoolKey:', validatedPoolKey);
+
+      // Step 2.3: Check if pool already exists first
+      console.log('Checking if pool already exists...');
+      try {
+        const poolId = generatePoolId(currency0, currency1);
+        console.log('Generated Pool ID:', poolId);
+
+        const slot0 = await publicClient?.readContract({
+          address: SHINRAI_CONTRACTS.POOL_MANAGER as `0x${string}`,
+          abi: POOL_MANAGER_ABI,
+          functionName: 'getSlot0',
+          args: [poolId as `0x${string}`]
+        });
+
+        console.log('Pool slot0 data:', slot0);
+        if (slot0 && slot0[0] !== 0n) {
+          throw new Error('Pool already exists with this token pair');
+        }
+      } catch (readError) {
+        console.log('Pool check result:', readError);
+      }
+
+      // Step 2.4: Initialize pool with official Uniswap V4 PoolManager
+      console.log('Calling official PoolManager.initialize...');
       const initTx = await writeContractAsync({
         address: SHINRAI_CONTRACTS.POOL_MANAGER as `0x${string}`,
         abi: POOL_MANAGER_ABI,
         functionName: 'initialize',
-        args: [poolKey, sqrtPriceX96]
+        args: [validatedPoolKey, sqrtPriceX96]
       });
 
       console.log('Pool initialization transaction:', initTx);
