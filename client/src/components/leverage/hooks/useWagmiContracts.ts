@@ -1,21 +1,14 @@
 // Wagmi-based contract hooks for Shinrai Protocol
-import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect, useWriteContract, useReadContract, usePublicClient } from 'wagmi';
-import { waitForTransactionReceipt } from '@wagmi/core';
-import { parseEther, formatEther, encodeFunctionData } from 'viem';
+import { parseEther } from 'viem';
 import { sepolia } from 'wagmi/chains';
 import {
   SHINRAI_CONTRACTS,
-  PROTOCOL_CONFIG,
   POOL_MANAGER_ABI,
   MARGIN_ROUTER_ABI,
-  GLOBAL_ASSET_LEDGER_ABI,
   ERC20_ABI,
-  createPoolKey,
   priceToSqrtPriceX96,
-  generatePoolId,
-  type LeveragePosition,
-  type BorrowAuthorization
+  generatePoolId
 } from '../contracts';
 
 // Hook for Wagmi-based wallet connection
@@ -59,8 +52,7 @@ export function useWagmiContracts() {
     token0: `0x${string}`,
     token1: `0x${string}`,
     initialPrice: string,
-    maxLeverage: number,
-    borrowCap: string
+    maxLeverage: number
   ) => {
     if (!isConnected || !address) {
       throw new Error('Wallet not connected');
@@ -365,7 +357,7 @@ export function useWagmiContracts() {
       return tx;
     } catch (error) {
       console.error('❌ Pool authorization failed:', error);
-      throw new Error(`Pool authorization failed: ${error.message}`);
+      throw new Error(`Pool authorization failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -393,16 +385,8 @@ export function useTokenInfo(tokenAddress: `0x${string}` | undefined) {
     }
   });
 
-  const { data: name } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'name',
-    query: {
-      enabled: !!tokenAddress,
-      retry: false,
-      refetchOnWindowFocus: false
-    }
-  });
+  // Note: name function not available in current ERC20_ABI
+  const name = undefined;
 
   const { data: decimals } = useReadContract({
     address: tokenAddress,
@@ -442,11 +426,11 @@ export function useTokenInfo(tokenAddress: `0x${string}` | undefined) {
 
   return {
     symbol: symbol as string,
-    name: name as string,
+    name: (name as string | undefined) || '',
     decimals: decimals as number,
     balance: balance as bigint,
     allowance: allowance as bigint,
-    isLoaded: !!(symbol && name && typeof decimals === 'number')
+    isLoaded: !!(symbol && typeof decimals === 'number')
   };
 }
 

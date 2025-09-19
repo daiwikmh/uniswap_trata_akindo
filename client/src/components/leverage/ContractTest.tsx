@@ -70,7 +70,7 @@ export const ContractTest: React.FC = () => {
     } catch (error) {
       setTestResults(prev => ({
         ...prev,
-        [contractName]: { address, error: error.message }
+        [contractName]: { address, error: error instanceof Error ? error.message : String(error) }
       }));
     }
   };

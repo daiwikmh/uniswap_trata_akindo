@@ -8,8 +8,7 @@ import {
   GLOBAL_ASSET_LEDGER_ABI,
   ERC20_ABI_STRING as ERC20_ABI,
   createPoolKey,
-  type LeveragePosition,
-  type BorrowAuthorization
+  type LeveragePosition
 } from '../contracts';
 
 // Hook for connecting to wallet and contracts
@@ -274,7 +273,7 @@ export function useTokenOperations(signer: ethers.JsonRpcSigner | null) {
 }
 
 // Hook for protocol state
-export function useProtocolState(globalLedger: ethers.Contract | null, marginRouter: ethers.Contract | null) {
+export function useProtocolState(marginRouter: ethers.Contract | null) {
   const [maxLeverage, setMaxLeverage] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [loading, setLoading] = useState(false);

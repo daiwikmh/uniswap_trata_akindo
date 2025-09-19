@@ -1,27 +1,16 @@
 // Pool Creator Component for Leverage Trading
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Plus, Waves, Settings, Droplets, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Waves, Settings, Droplets } from 'lucide-react';
 import {
   SHINRAI_CONTRACTS,
-  PROTOCOL_CONFIG,
-  createPoolKey,
-  type PoolState
+  createPoolKey
 } from './contracts';
 import {
   useShinraiContracts,
   useTokenOperations
 } from './hooks/useShinraiContracts';
 
-interface PoolInfo {
-  poolKey: any;
-  poolId: string;
-  token0: string;
-  token1: string;
-  isAuthorized: boolean;
-  hasLiquidity: boolean;
-  leverageEnabled: boolean;
-}
 
 interface TokenInfo {
   address: string;
@@ -37,8 +26,7 @@ export const PoolCreator: React.FC = () => {
     account,
     isConnected,
     marginRouter,
-    globalLedger,
-    poolManager
+    globalLedger
   } = useShinraiContracts();
 
   const { getTokenBalance, getTokenContract } = useTokenOperations(
@@ -49,7 +37,6 @@ export const PoolCreator: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'create' | 'manage'>('create');
   const [isCreating, setIsCreating] = useState(false);
   const [creationStep, setCreationStep] = useState(0);
-  const [existingPools, setExistingPools] = useState<PoolInfo[]>([]);
 
   // Pool creation form
   const [token0Address, setToken0Address] = useState('');

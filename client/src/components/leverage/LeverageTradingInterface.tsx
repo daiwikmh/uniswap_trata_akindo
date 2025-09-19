@@ -2,8 +2,8 @@ import { useCreatedPools } from './hooks/useCreatedPools';
 import React, { useState, useEffect } from 'react';
 import { parseEther, formatEther, isAddress } from 'viem';
 import {
-  TrendingUp, TrendingDown, Zap, Shield, AlertTriangle,
-  DollarSign, Target, Activity, Calculator, Info
+  TrendingUp, TrendingDown, Zap, AlertTriangle,
+  Target, Activity, Calculator, Info
 } from 'lucide-react';
 import { useWagmiContracts, useTokenInfo } from './hooks/useWagmiContracts';
 import { usePoolData, useLeveragePositions } from './hooks/usePoolData';
@@ -26,13 +26,12 @@ interface TradeParams {
 
 export const LeverageTradingInterface: React.FC<LeverageTradingInterfaceProps> = ({
   poolKey: providedPoolKey,
-  poolId,
   className = ""
 }) => {
   const { openLeveragePosition, approveToken, isConnected } = useWagmiContracts();
 
   // Use created pools if no poolKey is provided
-  const { pools, selectedPool, setSelectedPool } = useCreatedPools();
+  const { pools, selectedPool } = useCreatedPools();
   const [selectedPoolId, setSelectedPoolId] = useState<string>('');
 
   // Determine which pool to use
@@ -45,7 +44,7 @@ export const LeverageTradingInterface: React.FC<LeverageTradingInterfaceProps> =
   const poolKey = currentPool?.poolKey;
 
   const { poolData } = usePoolData(poolKey);
-  const { positions, totalPositions } = useLeveragePositions(poolKey);
+  const { totalPositions } = useLeveragePositions();
 
   // Debug logging
   useEffect(() => {

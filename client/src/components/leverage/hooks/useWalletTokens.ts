@@ -1,8 +1,7 @@
 // Hook to discover tokens in connected wallet
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { formatEther, isAddress } from 'viem';
-import { ERC20_ABI } from '../contracts';
 
 interface WalletToken {
   address: `0x${string}`;

@@ -9,9 +9,7 @@ import {
   useProtocolState
 } from './hooks/useShinraiContracts';
 import {
-  SHINRAI_CONTRACTS,
-  PROTOCOL_CONFIG,
-  createPoolKey
+  SHINRAI_CONTRACTS
 } from './contracts';
 import { useWagmiConnection, useWagmiContracts } from './hooks/useWagmiContracts';
 import UniswapV4PoolCreator from './UniswapV4PoolCreator';
@@ -40,7 +38,6 @@ const LeverageTrading: React.FC = () => {
     account,
     isConnected: contractConnected,
     marginRouter,
-    globalLedger,
     connectWallet,
     disconnect
   } = useShinraiContracts();
@@ -54,9 +51,7 @@ const LeverageTrading: React.FC = () => {
   const {
     positions,
     loading: positionsLoading,
-    openPosition,
-    closePosition,
-    checkPositionHealth
+    closePosition
   } = useLeveragePositions(marginRouter, account);
 
   const {
@@ -69,7 +64,6 @@ const LeverageTrading: React.FC = () => {
   // Wagmi contracts for pool-based trading
   const {
     openLeveragePosition: openLeveragePositionWagmi,
-    approveToken: approveTokenWagmi,
     checkPoolAuthorization,
     authorizePoolManually
   } = useWagmiContracts();
@@ -101,10 +95,10 @@ const LeverageTrading: React.FC = () => {
   const {
     maxLeverage,
     isPaused
-  } = useProtocolState(globalLedger, marginRouter);
+  } = useProtocolState(marginRouter);
 
   // Pool management
-  const { pools, selectedPool, hasSelectedPool } = useCreatedPools();
+  const { pools, selectedPool } = useCreatedPools();
 
   // Debug: Log pools data when it changes
   useEffect(() => {
@@ -144,8 +138,8 @@ const LeverageTrading: React.FC = () => {
 
     if (currentPool) {
       // Auto-select the pool tokens
-      setSelectedToken0(currentPool.poolKey.currency0);
-      setSelectedToken1(currentPool.poolKey.currency1);
+      setSelectedToken0(currentPool.poolKey.currency0 as typeof SHINRAI_CONTRACTS.MOCK_TOKEN0);
+      setSelectedToken1(currentPool.poolKey.currency1 as typeof SHINRAI_CONTRACTS.MOCK_TOKEN1);
       console.log('🔄 Auto-selected tokens from pool:', {
         token0: currentPool.poolKey.currency0,
         token1: currentPool.poolKey.currency1,
@@ -302,7 +296,7 @@ const LeverageTrading: React.FC = () => {
             // Continue with position opening
           } catch (authError) {
             console.error('Pool authorization failed:', authError);
-            alert(`❌ Pool authorization failed: ${authError.message}\n\nYou are not the protocol owner or the transaction was rejected.`);
+            alert(`❌ Pool authorization failed: ${authError instanceof Error ? authError.message : String(authError)}\n\nYou are not the protocol owner or the transaction was rejected.`);
             return;
           }
         } else {
@@ -347,7 +341,8 @@ const LeverageTrading: React.FC = () => {
         console.error('Position opening error details:', positionError);
 
         // Check if it's an authorization error
-        if (positionError.message.includes('not authorized') || positionError.message.includes('Pool not authorized')) {
+        const errorMessage = positionError instanceof Error ? positionError.message : String(positionError);
+        if (errorMessage.includes('not authorized') || errorMessage.includes('Pool not authorized')) {
           throw new Error('Pool not authorized for leverage trading. Please try recreating the pool.');
         }
 
@@ -360,7 +355,7 @@ const LeverageTrading: React.FC = () => {
 
     } catch (error) {
       console.error('Failed to open position:', error);
-      alert(`Failed to open position: ${error.message}`);
+      alert(`Failed to open position: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsTrading(false);
     }
@@ -425,7 +420,7 @@ const LeverageTrading: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={finalDisconnect}
+            onClick={() => finalDisconnect()}
             className="px-4 py-2 border rounded-lg hover:bg-secondary transition-colors"
           >
             Disconnect
@@ -541,7 +536,7 @@ const LeverageTrading: React.FC = () => {
                     <label className="block text-sm font-medium mb-2">From Token</label>
                     <select
                       value={selectedToken0}
-                      onChange={(e) => setSelectedToken0(e.target.value)}
+                      onChange={(e) => setSelectedToken0(e.target.value as typeof SHINRAI_CONTRACTS.MOCK_TOKEN0)}
                       className="w-full p-3 border rounded-lg bg-background"
                       disabled={pools.length === 0}
                     >
@@ -573,7 +568,7 @@ const LeverageTrading: React.FC = () => {
                     <label className="block text-sm font-medium mb-2">To Token</label>
                     <select
                       value={selectedToken1}
-                      onChange={(e) => setSelectedToken1(e.target.value)}
+                      onChange={(e) => setSelectedToken1(e.target.value as typeof SHINRAI_CONTRACTS.MOCK_TOKEN1)}
                       className="w-full p-3 border rounded-lg bg-background"
                       disabled={pools.length === 0}
                     >
@@ -740,7 +735,7 @@ const LeverageTrading: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {pools.slice(0, 3).map((pool, index) => (
+                    {pools.slice(0, 3).map((pool) => (
                       <div
                         key={pool.poolId}
                         className={`p-3 rounded-lg border ${

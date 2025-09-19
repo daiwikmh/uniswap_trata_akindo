@@ -26,7 +26,7 @@ export const PoolInfoDisplay: React.FC<PoolInfoDisplayProps> = ({
   const { poolData, isLoading: poolLoading, error } = usePoolData(poolKey);
   const leverageInfo = useLeveragePoolInfo(poolKey);
   const { priceHistory, alerts, currentPrice, priceChange24h } = usePoolMonitoring(poolKey);
-  const { positions, totalPositions } = useLeveragePositions(poolKey);
+  const { positions, totalPositions } = useLeveragePositions();
 
   if (!poolKey) {
     return (
@@ -254,7 +254,7 @@ export const PoolInfoDisplay: React.FC<PoolInfoDisplayProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {positions.map((position, index) => (
+                {positions.map((position: any, index: number) => (
                   <div key={position.id || index} className="bg-muted rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">

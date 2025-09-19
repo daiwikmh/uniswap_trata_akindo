@@ -153,11 +153,11 @@ export function useCreatedPools() {
 
   // Remove a pool
   const removePool = useCallback((poolId: string) => {
-    setPools(prev => prev.filter(p => p.poolId !== poolId));
+    setPools(pools => pools.filter(p => p.poolId !== poolId));
 
     // If the removed pool was selected, select another one
     if (selectedPool?.poolId === poolId) {
-      setSelectedPool(prev => {
+      setSelectedPool(() => {
         const remaining = pools.filter(p => p.poolId !== poolId);
         return remaining.length > 0 ? remaining[0] : null;
       });

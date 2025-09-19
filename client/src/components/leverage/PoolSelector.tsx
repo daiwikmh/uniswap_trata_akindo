@@ -1,6 +1,6 @@
 // Component for selecting and managing created pools
 import React, { useState } from 'react';
-import { Waves, Settings, ExternalLink, Edit2, Trash2, Plus, CheckCircle } from 'lucide-react';
+import { Waves, ExternalLink, Edit2, Trash2, CheckCircle } from 'lucide-react';
 import { useCreatedPools, useTokenSymbols, type StoredPool } from './hooks/useCreatedPools';
 import { NETWORK_CONFIG } from './contracts';
 
@@ -15,7 +15,6 @@ export const PoolSelector: React.FC<PoolSelectorProps> = ({
 }) => {
   const {
     pools,
-    userPools,
     selectedPool,
     setSelectedPool,
     updatePoolName,

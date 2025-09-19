@@ -321,7 +321,6 @@ export function generatePoolId(token0: string, token1: string, fee: number = 300
 
   // For client-side, we'll create a deterministic hash based on the pool parameters
   // This should match the contract's calculation
-  const encoder = new TextEncoder();
   const data = `${token0}${token1}${fee}${tickSpacing}`;
 
   // Simple hash for now - in production would use proper keccak256

@@ -5,7 +5,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.uniswap.org)",
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

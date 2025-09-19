@@ -1,11 +1,11 @@
 // Uniswap V4 Pool Creator with LeverageHook Integration
 import React, { useState, useEffect, useRef } from 'react';
-import { parseEther, formatEther, isAddress } from 'viem';
-import { Plus, Waves, Settings, Droplets, AlertCircle, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
-import { useWagmiConnection, useWagmiContracts, useTokenInfo, useProtocolState } from './hooks/useWagmiContracts';
+import { formatEther, isAddress } from 'viem';
+import { Plus, Waves, Droplets, AlertCircle, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
+import { useWagmiConnection, useWagmiContracts, useTokenInfo } from './hooks/useWagmiContracts';
 import { useWalletTokens } from './hooks/useWalletTokens';
 import { useCreatedPools } from './hooks/useCreatedPools';
-import { SHINRAI_CONTRACTS, PROTOCOL_CONFIG } from './contracts';
+import { SHINRAI_CONTRACTS } from './contracts';
 
 interface PoolCreationStep {
   id: number;
@@ -17,9 +17,9 @@ interface PoolCreationStep {
 export const UniswapV4PoolCreator: React.FC = () => {
   // Wagmi hooks
   const { address, isConnected, connectWallet, disconnect } = useWagmiConnection();
-  const { createLeveragePool, approveToken } = useWagmiContracts();
+  const { createLeveragePool } = useWagmiContracts();
   const { allTokens, isLoading: tokensLoading, addCustomToken } = useWalletTokens();
-  const { addPool, pools, selectedPool } = useCreatedPools();
+  const { addPool } = useCreatedPools();
 
   // Form state
   const [token0Address, setToken0Address] = useState<`0x${string}` | ''>('');
@@ -27,7 +27,6 @@ export const UniswapV4PoolCreator: React.FC = () => {
   const [initialPrice, setInitialPrice] = useState('1.0');
   const [leverageLimit, setLeverageLimit] = useState(1000); // 10x
   const [borrowCap, setBorrowCap] = useState('1000000');
-  const [initialLiquidity, setInitialLiquidity] = useState('1000');
 
   // Token selection state
   const [showTokenSelector, setShowTokenSelector] = useState<'token0' | 'token1' | null>(null);
@@ -37,7 +36,6 @@ export const UniswapV4PoolCreator: React.FC = () => {
   // Creation state
   const [isCreating, setIsCreating] = useState(false);
   const [creationSteps, setCreationSteps] = useState<PoolCreationStep[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
   const [createdPool, setCreatedPool] = useState<any>(null);
 
   // Refs for click-outside functionality
@@ -222,7 +220,6 @@ export const UniswapV4PoolCreator: React.FC = () => {
       setIsCreating(true);
       const steps = initializeSteps();
       setCreationSteps(steps);
-      setCurrentStep(1);
 
       // Step 1: Validate tokens
       updateStep(1, 'in-progress');
@@ -232,13 +229,11 @@ export const UniswapV4PoolCreator: React.FC = () => {
         throw new Error('Invalid token addresses');
       }
       updateStep(1, 'completed');
-      setCurrentStep(2);
 
       // Step 2: Create pool key
       updateStep(2, 'in-progress');
       console.log('Creating pool with LeverageHook integration...');
       updateStep(2, 'completed');
-      setCurrentStep(3);
 
       // Step 3: Initialize Uniswap V4 Pool
       updateStep(3, 'in-progress');
@@ -246,17 +241,14 @@ export const UniswapV4PoolCreator: React.FC = () => {
         token0Address as `0x${string}`,
         token1Address as `0x${string}`,
         initialPrice,
-        leverageLimit,
-        borrowCap
+        leverageLimit
       );
       updateStep(3, 'completed');
-      setCurrentStep(4);
 
       // Step 4: Configure leverage settings (borrow caps handled in createLeveragePool)
       updateStep(4, 'in-progress');
       await new Promise(resolve => setTimeout(resolve, 1000)); // Allow time for confirmation
       updateStep(4, 'completed');
-      setCurrentStep(5);
 
       // Step 5: Initial liquidity (placeholder for now)
       updateStep(5, 'in-progress');

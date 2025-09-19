@@ -164,7 +164,7 @@ const CreatePool: React.FC = () => {
               className="w-full p-2 rounded-md bg-muted border border-border"
             >
               {Object.entries(FeeAmount)
-                .filter(([k, v]) => typeof v === "number") // only enum values
+                .filter(([, v]) => typeof v === "number") // only enum values
                 .map(([key, value]) => (
                   <option key={value} value={value}>
                     {key} ({value} bps)

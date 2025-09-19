@@ -1,13 +1,10 @@
 // Hook for fetching Uniswap V4 pool data following official documentation
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useReadContract, useAccount } from 'wagmi';
-import { formatEther, parseEther } from 'viem';
 import {
   SHINRAI_CONTRACTS,
   POOL_MANAGER_ABI,
-  MARGIN_ROUTER_ABI,
-  generatePoolId,
-  priceToSqrtPriceX96
+  generatePoolId
 } from '../contracts';
 
 export interface PoolData {
@@ -180,22 +177,13 @@ export function useLeveragePoolInfo(poolKey: any): LeveragePoolInfo {
 }
 
 // Hook for managing leverage positions
-export function useLeveragePositions(poolKey: any) {
-  const { address } = useAccount();
+export function useLeveragePositions() {
   const [positions, setPositions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch user positions from MarginRouter
-  const { data: positionIds } = useReadContract({
-    address: SHINRAI_CONTRACTS.MARGIN_ROUTER as `0x${string}`,
-    abi: MARGIN_ROUTER_ABI,
-    functionName: 'getTraderPositions',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address,
-      refetchInterval: 15000 // Refresh every 15 seconds
-    }
-  });
+  // Note: getTraderPositions not implemented in current ABI
+  // Using placeholder for positions data
+  const positionIds: any[] = [];
 
   // Process position data
   useEffect(() => {
