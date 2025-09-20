@@ -3,7 +3,7 @@ import { getAllPoolsInfo, addPool } from "./src/hooks/hooks.js";
 import { ENV } from "./env.js";
 import cors from "cors";
 const app = express()
-const PORT = "https://shinrai-atrium-pqkx.vercel.app/";
+const PORT = 3000;
 
 app.use(cors());
 

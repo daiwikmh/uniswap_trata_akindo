@@ -30,7 +30,7 @@ function App() {
           <BrowserRouter>
             <AppLayout>
               <Routes>
-                <Route path="/" element={<DashboardOverview />} />
+                <Route path="/" element={<Pool />} />
                 <Route path="/create-pool" element={<CreatePool />} />
                 <Route path="/leverage" element={<Pool />} />
               </Routes>

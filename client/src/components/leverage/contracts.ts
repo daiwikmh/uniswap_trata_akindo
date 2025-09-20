@@ -1,4 +1,3 @@
-// Shinrai Protocol Contract Configuration
 import { ethers } from 'ethers';
 
 // Contract addresses - Official Uniswap V4 + Shinrai protocol on Sepolia
@@ -7,6 +6,8 @@ export const SHINRAI_CONTRACTS = {
   POOL_MANAGER: "0xab68573623f90708958c119F7F75236b5F13EF00",
 
   // Shinrai Protocol Contracts (Your deployment - need to register hook with official PoolManager)
+  
+  LEVERAGE_HOOK_SALT: "0x00000000000000000000000000000000000000000000000000000000000009d4",
   LEVERAGE_HOOK: "0x220c3B7316280D991fB501060EfB58D1819743c0",
   MARGIN_ROUTER: "0x90204d0F2A1C0e9BD2fb56849bD9262e694D8701",
   GLOBAL_ASSET_LEDGER: "0x3570161C03e5dD3CaC20C1e140C7B4889152B69D",
