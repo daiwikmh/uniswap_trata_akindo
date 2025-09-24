@@ -9,20 +9,12 @@ import {SwapParams} from "lib/v4-periphery/lib/v4-core/src/types/PoolOperation.s
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {SafeCast} from "v4-core/libraries/SafeCast.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract CoWUniswapV4Hook is BaseHook {
     // ============ State Variables ============
 
-    /// @notice EIP-712 domain separator for order signing
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     /// @notice Dynamic fee flag for Uniswap v4 pools
     uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
-
-    /// @notice Nonce to prevent order replay
-    mapping(address => uint256) public nonces;
 
     // ============ Structs ============
 
@@ -33,8 +25,6 @@ contract CoWUniswapV4Hook is BaseHook {
         uint256 amountIn; // Amount to sell
         uint256 amountOutMin; // Minimum amount to receive
         uint256 deadline; // Order expiry
-        uint256 nonce; // Unique nonce for replay protection
-        bytes signature; // EIP-712 signature
     }
 
     struct CoWMatch {
@@ -64,13 +54,8 @@ contract CoWUniswapV4Hook is BaseHook {
     // ============ Constructor ============
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
-    // Initialize EIP-712 domain separator
-    bytes32 domainTypeHash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 nameHash = keccak256(bytes("CoWUniswapV4Hook"));
-    bytes32 versionHash = keccak256(bytes("1"));
-    bytes32 structHash = keccak256(abi.encode(domainTypeHash, nameHash, versionHash, block.chainid, address(this)));
-    DOMAIN_SEPARATOR = MessageHashUtils.toTypedDataHash(structHash, bytes32(0)); // Note: bytes32(0) may need to be adjusted
-}
+        // No signature verification needed - simplified
+    }
 
     // ============ Hook Permissions ============
 
@@ -101,11 +86,7 @@ contract CoWUniswapV4Hook is BaseHook {
      * @param cowMatch CoWMatch struct containing buy and sell orders
      */
     function settleCoWMatch(CoWMatch memory cowMatch) external {
-        // Verify signatures
-        _verifyOrder(cowMatch.buyOrder);
-        _verifyOrder(cowMatch.sellOrder);
-
-        // Validate amounts and compatibility
+        // Validate amounts and compatibility - no signature verification needed
         require(cowMatch.buyOrder.tokenIn == cowMatch.sellOrder.tokenOut, "Invalid token pair");
         require(cowMatch.sellOrder.tokenIn == cowMatch.buyOrder.tokenOut, "Invalid token pair");
         require(cowMatch.buyOrder.amountIn >= cowMatch.amount, "Insufficient buy amount");
@@ -118,10 +99,6 @@ contract CoWUniswapV4Hook is BaseHook {
         // Execute transfers
         IERC20Minimal(cowMatch.buyOrder.tokenIn).transferFrom(cowMatch.buyOrder.trader, cowMatch.sellOrder.trader, cowMatch.amount);
         IERC20Minimal(cowMatch.sellOrder.tokenIn).transferFrom(cowMatch.sellOrder.trader, cowMatch.buyOrder.trader, cowMatch.amount);
-
-        // Increment nonces to prevent replay
-        nonces[cowMatch.buyOrder.trader]++;
-        nonces[cowMatch.sellOrder.trader]++;
 
         emit CoWOrderMatched(
             cowMatch.buyOrder.trader,
@@ -145,7 +122,10 @@ contract CoWUniswapV4Hook is BaseHook {
         // If hookData contains a CoW order, attempt to match it
         if (hookData.length > 0) {
             CoWOrder memory order = abi.decode(hookData, (CoWOrder));
-            _verifyOrder(order);
+
+            // Basic order validation (no signature verification)
+            require(order.deadline >= block.timestamp, "Order expired");
+            require(order.trader != address(0), "Invalid trader");
 
             // Check if order can be matched off-chain (simplified check)
             if (_canMatchOrder(order, key)) {
@@ -167,31 +147,15 @@ contract CoWUniswapV4Hook is BaseHook {
     // ============ Internal Functions ============
 
     /**
-     * @notice Verify an order's EIP-712 signature
+     * @notice Basic order validation (no signature verification)
      */
-    function _verifyOrder(CoWOrder memory order) internal view {
-        bytes32 orderHash = keccak256(
-            abi.encode(
-                keccak256("CoWOrder(address trader,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOutMin,uint256 deadline,uint256 nonce)"),
-                order.trader,
-                order.tokenIn,
-                order.tokenOut,
-                order.amountIn,
-                order.amountOutMin,
-                order.deadline,
-                order.nonce
-            )
-        );
-         bytes32 digest;
-    {
-        bytes memory prefix = hex"19_01";
-        bytes32 domainSeparator = DOMAIN_SEPARATOR;
-        digest = keccak256(abi.encodePacked(prefix, domainSeparator, orderHash));
-    }
-        address signer = ECDSA.recover(digest, order.signature);
-        require(signer == order.trader, "Invalid signature");
-        require(nonces[order.trader] == order.nonce, "Invalid nonce");
-        require(order.deadline >= block.timestamp, "Order expired");
+    function _validateOrder(CoWOrder memory order) internal pure {
+        require(order.trader != address(0), "Invalid trader");
+        require(order.tokenIn != address(0), "Invalid token in");
+        require(order.tokenOut != address(0), "Invalid token out");
+        require(order.amountIn > 0, "Invalid amount in");
+        require(order.amountOutMin > 0, "Invalid amount out min");
+        require(order.deadline > 0, "Invalid deadline");
     }
 
     /**

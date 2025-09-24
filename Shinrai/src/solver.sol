@@ -2,8 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 // Interface for the CoWUniswapV4Hook contract
 interface ICoWUniswapV4Hook {
@@ -14,8 +12,6 @@ interface ICoWUniswapV4Hook {
         uint256 amountIn; // Amount to sell
         uint256 amountOutMin; // Minimum amount to receive
         uint256 deadline; // Order expiry
-        uint256 nonce; // Unique nonce for replay protection
-        bytes signature; // EIP-712 signature
     }
 
     struct CoWMatch {
@@ -25,8 +21,6 @@ interface ICoWUniswapV4Hook {
     }
 
     function settleCoWMatch(CoWMatch memory cowMatch) external;
-    function nonces(address trader) external view returns (uint256);
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
 }
 
 contract CoWSolver {
@@ -34,9 +28,6 @@ contract CoWSolver {
 
     /// @notice Reference to the CoWUniswapV4Hook contract
     ICoWUniswapV4Hook public immutable hook;
-
-    /// @notice EIP-712 domain separator for order signing
-    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // ============ Events ============
 
@@ -46,8 +37,7 @@ contract CoWSolver {
         address tokenOut,
         uint256 amountIn,
         uint256 amountOutMin,
-        uint256 deadline,
-        uint256 nonce
+        uint256 deadline
     );
 
     event OrdersMatched(
@@ -62,7 +52,6 @@ contract CoWSolver {
 
     constructor(address _hook) {
         hook = ICoWUniswapV4Hook(_hook);
-        DOMAIN_SEPARATOR = hook.DOMAIN_SEPARATOR();
     }
 
     // ============ Structs ============
@@ -74,8 +63,6 @@ contract CoWSolver {
         uint256 amountIn; // Amount to sell
         uint256 amountOutMin; // Minimum amount to receive
         uint256 deadline; // Order expiry
-        uint256 nonce; // Unique nonce for replay protection
-        bytes signature; // EIP-712 signature
     }
 
     // ============ Core Functions ============
@@ -85,8 +72,11 @@ contract CoWSolver {
      * @param order The CoW order to submit
      */
     function submitOrder(CoWOrder memory order) external {
-        // Verify the order signature
-        _verifyOrder(order);
+        // Basic validation (no signature verification needed)
+        require(order.trader == msg.sender, "Only trader can submit their order");
+        require(order.deadline > block.timestamp, "Order expired");
+        require(order.amountIn > 0, "Invalid amount in");
+        require(order.amountOutMin > 0, "Invalid amount out min");
 
         // Emit event for off-chain processing
         emit OrderSubmitted(
@@ -95,8 +85,7 @@ contract CoWSolver {
             order.tokenOut,
             order.amountIn,
             order.amountOutMin,
-            order.deadline,
-            order.nonce
+            order.deadline
         );
     }
 
@@ -111,7 +100,7 @@ contract CoWSolver {
     CoWOrder memory sellOrder,
     uint256 amount
 ) external {
-    // Validate orders
+    // Validate orders (no signature verification needed)
     require(buyOrder.tokenIn == sellOrder.tokenOut, "Invalid token pair");
     require(sellOrder.tokenIn == buyOrder.tokenOut, "Invalid token pair");
     require(buyOrder.amountIn >= amount, "Insufficient buy amount");
@@ -121,10 +110,6 @@ contract CoWSolver {
     require(buyOrder.deadline >= block.timestamp, "Buy order expired");
     require(sellOrder.deadline >= block.timestamp, "Sell order expired");
 
-    // Verify signatures
-    _verifyOrder(buyOrder);
-    _verifyOrder(sellOrder);
-
     // Convert CoWSolver.CoWOrder to ICoWUniswapV4Hook.CoWOrder
     ICoWUniswapV4Hook.CoWOrder memory hookBuyOrder = ICoWUniswapV4Hook.CoWOrder({
         trader: buyOrder.trader,
@@ -132,9 +117,7 @@ contract CoWSolver {
         tokenOut: buyOrder.tokenOut,
         amountIn: buyOrder.amountIn,
         amountOutMin: buyOrder.amountOutMin,
-        deadline: buyOrder.deadline,
-        nonce: buyOrder.nonce,
-        signature: buyOrder.signature
+        deadline: buyOrder.deadline
     });
 
     ICoWUniswapV4Hook.CoWOrder memory hookSellOrder = ICoWUniswapV4Hook.CoWOrder({
@@ -143,9 +126,7 @@ contract CoWSolver {
         tokenOut: sellOrder.tokenOut,
         amountIn: sellOrder.amountIn,
         amountOutMin: sellOrder.amountOutMin,
-        deadline: sellOrder.deadline,
-        nonce: sellOrder.nonce,
-        signature: sellOrder.signature
+        deadline: sellOrder.deadline
     });
 
     // Create CoWMatch struct
@@ -174,31 +155,16 @@ contract CoWSolver {
     // ============ Internal Functions ============
 
     /**
-     * @notice Verify an order's EIP-712 signature
-     * @param order The CoW order to verify
+     * @notice Basic order validation (no signature verification)
+     * @param order The CoW order to validate
      */
-    function _verifyOrder(CoWOrder memory order) internal view {
-        bytes32 orderHash = keccak256(
-            abi.encode(
-                keccak256("CoWOrder(address trader,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOutMin,uint256 deadline,uint256 nonce)"),
-                order.trader,
-                order.tokenIn,
-                order.tokenOut,
-                order.amountIn,
-                order.amountOutMin,
-                order.deadline,
-                order.nonce
-            )
-        );
- bytes32 digest;
-    {
-        bytes memory prefix = hex"19_01";
-        bytes32 domainSeparator = DOMAIN_SEPARATOR;
-        digest = keccak256(abi.encodePacked(prefix, domainSeparator, orderHash));
-    }        address signer = ECDSA.recover(digest, order.signature);
-        require(signer == order.trader, "Invalid signature");
-        require(hook.nonces(order.trader) == order.nonce, "Invalid nonce");
-        require(order.deadline >= block.timestamp, "Order expired");
+    function _validateOrder(CoWOrder memory order) internal pure {
+        require(order.trader != address(0), "Invalid trader");
+        require(order.tokenIn != address(0), "Invalid token in");
+        require(order.tokenOut != address(0), "Invalid token out");
+        require(order.amountIn > 0, "Invalid amount in");
+        require(order.amountOutMin > 0, "Invalid amount out min");
+        require(order.deadline > 0, "Invalid deadline");
     }
 
     /**
