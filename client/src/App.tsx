@@ -8,6 +8,7 @@ import { metaMask } from "wagmi/connectors";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Pool from "@/components/pool/Pool";
 import CreatePool from "@/components/pool/CreatePool";
+import CoWProtocol from "@/components/cow/CoWProtocol";
 function App() {
   const client = new QueryClient();
   const config = createConfig({
@@ -33,6 +34,8 @@ function App() {
                 <Route path="/" element={<Pool />} />
                 <Route path="/create-pool" element={<CreatePool />} />
                 <Route path="/leverage" element={<Pool />} />
+                <Route path="/cow" element={<CoWProtocol />} />
+                <Route path="/cow-protocol" element={<CoWProtocol />} />
               </Routes>
             </AppLayout>
           </BrowserRouter>

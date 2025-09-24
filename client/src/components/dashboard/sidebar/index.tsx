@@ -46,7 +46,8 @@ type DashboardSidebarProps = React.ComponentProps<typeof Sidebar> & {
 const navItems = [
   { title: "Overview", url: "/", icon: BracketsIcon, locked: false },
   { title: "Leverage", url: "/leverage", icon: ProcessorIcon, locked: false },
-  { title: "Create Pool", url: "/create-pool", icon: AtomIcon, locked: false },
+  { title: "CoW Protocol", url: "/cow", icon: AtomIcon, locked: false },
+  { title: "Create Pool", url: "/create-pool", icon: ProcessorIcon, locked: false },
   { title: "Security", url: "/security", icon: CuteRobotIcon, locked: false },
   { title: "Communication", url: "/communication", icon: EmailIcon, locked: false },
   { title: "Admin Settings", url: "/admin", icon: GearIcon, locked: true },

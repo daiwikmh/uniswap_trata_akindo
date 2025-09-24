@@ -807,3 +807,590 @@
 .dark .pool-create-button:hover:not(:disabled) {
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
+
+/* CoW Protocol Styles */
+.cow-protocol-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  space-y: 1.5rem;
+}
+
+.cow-header {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cow-contract-card {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.cow-contract-card:hover {
+  background: var(--accent);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cow-contract-address {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.cow-tab-navigation {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--muted);
+  padding: 0.25rem;
+  border-radius: var(--radius-lg);
+  width: fit-content;
+}
+
+.cow-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.cow-tab-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cow-tab-inactive {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.cow-tab-inactive:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.cow-order-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.cow-order-type-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cow-order-type-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cow-order-type-buy {
+  background: var(--success);
+  color: var(--background);
+}
+
+.cow-order-type-sell {
+  background: var(--destructive);
+  color: var(--background);
+}
+
+.cow-order-type-inactive {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.cow-order-type-inactive:hover {
+  background: var(--secondary);
+  opacity: 0.8;
+}
+
+.cow-token-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cow-token-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  transition: all 0.2s ease-in-out;
+  font-family: inherit;
+}
+
+.cow-token-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(from var(--primary) l c h / 0.2);
+}
+
+.cow-token-select:hover {
+  border-color: var(--accent);
+}
+
+.cow-amount-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  transition: all 0.2s ease-in-out;
+  font-family: inherit;
+  margin-bottom: 1rem;
+}
+
+.cow-amount-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(from var(--primary) l c h / 0.2);
+}
+
+.cow-deadline-slider {
+  width: 100%;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.cow-order-preview {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cow-order-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.cow-order-preview-item:last-child {
+  margin-bottom: 0;
+}
+
+.cow-order-preview-label {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.cow-exchange-rate {
+  background: var(--muted);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+}
+
+.cow-create-order-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cow-create-order-button:hover:not(:disabled) {
+  background: var(--primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cow-create-order-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cow-orders-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cow-order-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.cow-order-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cow-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.cow-order-id {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.cow-order-trader {
+  background: var(--secondary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.cow-order-amounts {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  margin-bottom: 0.25rem;
+}
+
+.cow-order-expiry {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.cow-order-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cow-action-button {
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.cow-action-button-buy {
+  background: var(--success);
+  color: var(--background);
+}
+
+.cow-action-button-buy:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.cow-action-button-sell {
+  background: var(--destructive);
+  color: var(--background);
+}
+
+.cow-action-button-sell:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.cow-action-button-inactive {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.cow-action-button-inactive:hover {
+  background: var(--secondary);
+  opacity: 0.8;
+}
+
+.cow-match-interface {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.cow-match-orders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cow-match-order-card {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-in-out;
+}
+
+.cow-match-buy-order {
+  background: var(--success);
+  background: oklch(from var(--success) l c h / 0.1);
+  border: 1px solid oklch(from var(--success) l c h / 0.2);
+}
+
+.cow-match-sell-order {
+  background: var(--destructive);
+  background: oklch(from var(--destructive) l c h / 0.1);
+  border: 1px solid oklch(from var(--destructive) l c h / 0.2);
+}
+
+.cow-match-order-label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.cow-match-buy-label {
+  color: var(--success);
+}
+
+.cow-match-sell-label {
+  color: var(--destructive);
+}
+
+.cow-match-amount-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  margin-bottom: 1rem;
+  transition: all 0.2s ease-in-out;
+  font-family: inherit;
+}
+
+.cow-match-amount-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(from var(--primary) l c h / 0.2);
+}
+
+.cow-match-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.cow-match-button {
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.cow-match-button:hover:not(:disabled) {
+  background: var(--primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cow-match-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cow-clear-button {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.cow-clear-button:hover {
+  background: var(--secondary);
+}
+
+.cow-history-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted-foreground);
+}
+
+.cow-history-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+}
+
+.cow-copy-button, .cow-external-button {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  color: var(--muted-foreground);
+}
+
+.cow-copy-button:hover, .cow-external-button:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.cow-refresh-button {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  color: var(--muted-foreground);
+}
+
+.cow-refresh-button:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+  transform: rotate(180deg);
+}
+
+/* Responsive Design for CoW Protocol */
+@media (max-width: 768px) {
+  .cow-protocol-container {
+    padding: 1rem;
+  }
+
+  .cow-header {
+    padding: 1rem;
+  }
+
+  .cow-order-form {
+    padding: 1rem;
+  }
+
+  .cow-match-interface {
+    padding: 1rem;
+  }
+
+  .cow-match-orders-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cow-token-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .cow-match-actions {
+    flex-direction: column;
+  }
+
+  .cow-tab-navigation {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .cow-tab {
+    flex: 1;
+    min-width: fit-content;
+  }
+}
+
+/* Dark mode enhancements for CoW Protocol */
+.dark .cow-contract-card:hover {
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.dark .cow-create-order-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.dark .cow-match-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.dark .cow-order-card:hover {
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+/* CoW Protocol specific animations */
+@keyframes cow-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.cow-loading {
+  animation: cow-pulse 2s infinite;
+}
+
+@keyframes cow-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cow-order-card {
+  animation: cow-slide-in 0.3s ease-out;
+}
+
+/* Status indicators */
+.cow-status-active {
+  color: var(--success);
+}
+
+.cow-status-pending {
+  color: var(--warning);
+}
+
+.cow-status-expired {
+  color: var(--destructive);
+}
+
+.cow-status-matched {
+  color: var(--primary);
+}
