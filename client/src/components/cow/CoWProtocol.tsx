@@ -22,7 +22,12 @@ import {
   validateTokenPair,
   calculateSqrtPriceX96,
   COMMON_PRICE_RATIOS,
-  type TokenInfo
+  type TokenInfo,
+  type CreatedPool,
+  savePoolsToStorage,
+  loadPoolsFromStorage,
+  generatePoolId,
+  checkPoolExists
 } from '@/constants/tokens';
 
 // Contract ABIs
@@ -62,20 +67,6 @@ const COW_HOOK_ABI = [
     "stateMutability": "nonpayable",
     "type": "function"
   },
-  {
-    "inputs": [{ "name": "trader", "type": "address" }],
-    "name": "nonces",
-    "outputs": [{ "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "DOMAIN_SEPARATOR",
-    "outputs": [{ "name": "", "type": "bytes32" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
 ] as const;
 
 const COW_SOLVER_ABI = [
@@ -88,9 +79,7 @@ const COW_SOLVER_ABI = [
           { "name": "tokenOut", "type": "address" },
           { "name": "amountIn", "type": "uint256" },
           { "name": "amountOutMin", "type": "uint256" },
-          { "name": "deadline", "type": "uint256" },
-          { "name": "nonce", "type": "uint256" },
-          { "name": "signature", "type": "bytes" }
+          { "name": "deadline", "type": "uint256" }
         ],
         "name": "order",
         "type": "tuple"
@@ -110,9 +99,7 @@ const COW_SOLVER_ABI = [
           { "name": "tokenOut", "type": "address" },
           { "name": "amountIn", "type": "uint256" },
           { "name": "amountOutMin", "type": "uint256" },
-          { "name": "deadline", "type": "uint256" },
-          { "name": "nonce", "type": "uint256" },
-          { "name": "signature", "type": "bytes" }
+          { "name": "deadline", "type": "uint256" }
         ],
         "name": "buyOrder",
         "type": "tuple"
@@ -124,9 +111,7 @@ const COW_SOLVER_ABI = [
           { "name": "tokenOut", "type": "address" },
           { "name": "amountIn", "type": "uint256" },
           { "name": "amountOutMin", "type": "uint256" },
-          { "name": "deadline", "type": "uint256" },
-          { "name": "nonce", "type": "uint256" },
-          { "name": "signature", "type": "bytes" }
+          { "name": "deadline", "type": "uint256" }
         ],
         "name": "sellOrder",
         "type": "tuple"
@@ -180,8 +165,8 @@ const ERC20_ABI = [
 
 // Contract addresses from deployment
 const CONTRACT_ADDRESSES = {
-  COW_HOOK: '0x42f3D2641c9Ed51aEa542298b2F92D779C9700c0',
-  COW_SOLVER: '0x03837117417572FB2a66137A11A0A0Fcc020D525',
+  COW_HOOK: '0x2b9c691E06Cb5F1b23858E4585d8eF58fd0380c0',
+  COW_SOLVER: '0x6659362Dd22ebA589aFe952da13517361FDe8a2a',
   POOL_MANAGER: '0xab68573623f90708958c119F7F75236b5F13EF00',
 } as const;
 
@@ -222,8 +207,6 @@ interface CoWOrder {
   amountIn: string;
   amountOutMin: string;
   deadline: number;
-  nonce: number;
-  signature: string;
 }
 
 interface TokenInfo {
@@ -257,7 +240,8 @@ const CoWProtocol: React.FC = () => {
   const [poolFee, setPoolFee] = useState(FEE_TIERS.MEDIUM);
   const [initialPrice, setInitialPrice] = useState(COMMON_PRICE_RATIOS.EQUAL);
   const [isCreatingPool, setIsCreatingPool] = useState(false);
-  const [createdPools, setCreatedPools] = useState<any[]>([]);
+  const [createdPools, setCreatedPools] = useState<CreatedPool[]>([]);
+  const [allPools, setAllPools] = useState<CreatedPool[]>([]);
 
   // Order matching state
   const [pendingOrders, setPendingOrders] = useState<CoWOrder[]>([]);
@@ -270,20 +254,7 @@ const CoWProtocol: React.FC = () => {
   const [tokens, setTokens] = useState<Record<string, TokenInfo>>({});
   const [loadingTokens, setLoadingTokens] = useState(false);
 
-  // Get user's nonce
-  const { data: userNonce } = useReadContract({
-    address: CONTRACT_ADDRESSES.COW_HOOK,
-    abi: COW_HOOK_ABI,
-    functionName: 'nonces',
-    args: address ? [address] : undefined,
-  });
-
-  // Get domain separator
-  const { data: domainSeparator } = useReadContract({
-    address: CONTRACT_ADDRESSES.COW_HOOK,
-    abi: COW_HOOK_ABI,
-    functionName: 'DOMAIN_SEPARATOR',
-  });
+  // No signature verification needed - simplified approach
 
   // Load token information
   const loadTokenInfo = useCallback(async () => {
@@ -313,97 +284,115 @@ const CoWProtocol: React.FC = () => {
     setLoadingTokens(false);
   }, [address]);
 
+  // Load pools from storage on component mount
+  useEffect(() => {
+    const pools = loadPoolsFromStorage();
+    setAllPools(pools);
+    // Filter pools created by current address
+    if (address) {
+      setCreatedPools(pools.filter(pool => pool.creator.toLowerCase() === address.toLowerCase()));
+    }
+  }, [address]);
+
   useEffect(() => {
     if (isConnected && address) {
       loadTokenInfo();
+      // Update created pools for current address
+      setCreatedPools(allPools.filter(pool => pool.creator.toLowerCase() === address.toLowerCase()));
     }
-  }, [isConnected, address, loadTokenInfo]);
+  }, [isConnected, address, loadTokenInfo, allPools]);
 
-  // Create EIP-712 signature for order
-  const signOrder = async (order: Omit<CoWOrder, 'signature'>): Promise<string> => {
-    if (!window.ethereum || !address) {
-      throw new Error('Wallet not connected');
-    }
-
-    const orderTypeHash = ethers.keccak256(
-      ethers.toUtf8Bytes('CoWOrder(address trader,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOutMin,uint256 deadline,uint256 nonce)')
-    );
-
-    const structHash = ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['bytes32', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256', 'uint256'],
-        [
-          orderTypeHash,
-          order.trader,
-          order.tokenIn,
-          order.tokenOut,
-          order.amountIn,
-          order.amountOutMin,
-          order.deadline,
-          order.nonce
-        ]
-      )
-    );
-
-    const digest = ethers.keccak256(
-      ethers.solidityPacked(['string', 'bytes32', 'bytes32'], ['\x19\x01', domainSeparator, structHash])
-    );
-
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const signature = await signer.signMessage(ethers.getBytes(digest));
-
-    return signature;
-  };
+  // No signature needed - simplified approach
 
   // Handle order creation
   const handleCreateOrder = async () => {
-    if (!address || !amountIn || !amountOutMin) return;
+    if (!address || !amountIn || !amountOutMin) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    // Check if pool exists for this token pair
+    const availablePool = allPools.find(pool =>
+      pool.isActive && (
+        (pool.token0.address.toLowerCase() === selectedTokenIn.toLowerCase() &&
+         pool.token1.address.toLowerCase() === selectedTokenOut.toLowerCase()) ||
+        (pool.token1.address.toLowerCase() === selectedTokenIn.toLowerCase() &&
+         pool.token0.address.toLowerCase() === selectedTokenOut.toLowerCase())
+      )
+    );
+
+    if (!availablePool) {
+      alert('No pool available for this token pair. Please create a pool first or select different tokens.');
+      return;
+    }
 
     try {
       setIsCreatingOrder(true);
 
       const deadline = Math.floor(Date.now() / 1000) + (orderDeadline * 3600);
-      const nonce = Number(userNonce || 0);
 
-      const orderData: Omit<CoWOrder, 'signature'> = {
+      console.log('⏰ Order deadline:', new Date(deadline * 1000).toLocaleString());
+
+      const orderData: CoWOrder = {
         trader: address,
         tokenIn: selectedTokenIn,
         tokenOut: selectedTokenOut,
         amountIn: ethers.parseEther(amountIn).toString(),
         amountOutMin: ethers.parseEther(amountOutMin).toString(),
-        deadline,
-        nonce
+        deadline
       };
 
-      // Sign the order
-      const signature = await signOrder(orderData);
+      console.log('📝 Creating order with data:', orderData);
+      console.log('🏊 Using pool:', availablePool.name);
 
-      const completeOrder: CoWOrder = {
-        ...orderData,
-        signature
-      };
+      // Validate amounts
+      if (BigInt(orderData.amountIn) <= 0) {
+        throw new Error('Amount in must be greater than 0');
+      }
+      if (BigInt(orderData.amountOutMin) <= 0) {
+        throw new Error('Minimum amount out must be greater than 0');
+      }
+
+      console.log('📤 Submitting order to solver (no signature required)...');
+      console.log('📋 Order data:', orderData);
 
       // Submit order to solver
-      await writeContract({
+      const txHash = await writeContract({
         address: CONTRACT_ADDRESSES.COW_SOLVER,
         abi: COW_SOLVER_ABI,
         functionName: 'submitOrder',
-        args: [completeOrder]
+        args: [orderData]
       });
 
+      console.log('✅ Order submitted successfully, tx:', txHash);
+
       // Add to pending orders (in production, this would come from events)
-      setPendingOrders(prev => [...prev, completeOrder]);
+      setPendingOrders(prev => [...prev, orderData]);
 
       // Reset form
       setAmountIn('');
       setAmountOutMin('');
       setOrderDeadline(24);
 
-      alert('Order created successfully!');
+      alert(`Order created successfully! 🎉\nTransaction: ${txHash}\nPool: ${availablePool.name}`);
     } catch (error) {
-      console.error('Failed to create order:', error);
-      alert(`Failed to create order: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('❌ Failed to create order:', error);
+
+      let errorMessage = 'Failed to create order';
+      if (error instanceof Error) {
+        errorMessage += `: ${error.message}`;
+
+        // Provide specific guidance for common errors
+        if (error.message.includes('Only trader can submit their order')) {
+          errorMessage += '\n\n💡 Only the trader can submit their own order';
+        } else if (error.message.includes('rejected')) {
+          errorMessage += '\n\n💡 Transaction was rejected by user';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage += '\n\n💡 Insufficient balance for transaction';
+        }
+      }
+
+      alert(errorMessage);
     } finally {
       setIsCreatingOrder(false);
     }
@@ -451,7 +440,7 @@ const CoWProtocol: React.FC = () => {
 
   // Pool creation function
   const handleCreatePool = async () => {
-    if (!poolName || !poolToken0 || !poolToken1) return;
+    if (!poolName || !poolToken0 || !poolToken1 || !address) return;
 
     const token0Info = TOKEN_METADATA[poolToken0];
     const token1Info = TOKEN_METADATA[poolToken1];
@@ -464,6 +453,12 @@ const CoWProtocol: React.FC = () => {
     const errors = validateTokenPair(token0Info, token1Info);
     if (errors.length > 0) {
       alert(`Validation errors: ${errors.join(', ')}`);
+      return;
+    }
+
+    // Check if pool already exists
+    if (checkPoolExists(allPools, poolToken0, poolToken1, poolFee)) {
+      alert('A pool with these tokens and fee tier already exists!');
       return;
     }
 
@@ -488,24 +483,37 @@ const CoWProtocol: React.FC = () => {
       });
 
       // Initialize pool on-chain
-      await writeContract({
+      const txHash = await writeContract({
         address: CONTRACT_ADDRESSES.POOL_MANAGER,
         abi: POOL_MANAGER_ABI,
         functionName: 'initialize',
         args: [poolKey, BigInt(sqrtPriceX96)]
       });
 
-      // Add to created pools list (in production, this would come from events)
-      const newPool = {
+      // Generate pool ID
+      const poolId = generatePoolId(poolToken0, poolToken1, poolFee);
+
+      // Create new pool object
+      const newPool: CreatedPool = {
+        id: poolId,
         name: poolName,
         token0: token0Info,
         token1: token1Info,
         fee: poolFee,
         initialPrice,
         poolKey,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        creator: address,
+        txHash,
+        isActive: true
       };
 
+      // Update all pools and save to storage
+      const updatedAllPools = [...allPools, newPool];
+      setAllPools(updatedAllPools);
+      savePoolsToStorage(updatedAllPools);
+
+      // Update created pools for current user
       setCreatedPools(prev => [...prev, newPool]);
 
       // Reset form
@@ -515,7 +523,7 @@ const CoWProtocol: React.FC = () => {
       setPoolFee(FEE_TIERS.MEDIUM);
       setInitialPrice(COMMON_PRICE_RATIOS.EQUAL);
 
-      alert('Pool created successfully! 🎉');
+      alert('Pool created successfully! 🎉\nIt will now be visible to all users for trading.');
     } catch (error) {
       console.error('Failed to create pool:', error);
       alert(`Failed to create pool: ${error instanceof Error ? error.message : String(error)}`);
@@ -757,14 +765,39 @@ const CoWProtocol: React.FC = () => {
                   <span className="text-muted-foreground">Deadline:</span>
                   <span>{orderDeadline}h from now</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nonce:</span>
-                  <span>{Number(userNonce || 0)}</span>
-                </div>
               </div>
 
+              {/* Pool Availability Check */}
+              {selectedTokenIn && selectedTokenOut && (
+                <div className="mt-4 p-3 border rounded-lg">
+                  <div className="text-sm font-medium mb-2">Pool Availability</div>
+                  {(() => {
+                    const availablePool = allPools.find(pool =>
+                      pool.isActive && (
+                        (pool.token0.address.toLowerCase() === selectedTokenIn.toLowerCase() &&
+                         pool.token1.address.toLowerCase() === selectedTokenOut.toLowerCase()) ||
+                        (pool.token1.address.toLowerCase() === selectedTokenIn.toLowerCase() &&
+                         pool.token0.address.toLowerCase() === selectedTokenOut.toLowerCase())
+                      )
+                    );
+
+                    return availablePool ? (
+                      <div className="text-xs text-success flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Pool available: {availablePool.name}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-destructive flex items-center gap-1">
+                        <XCircle className="w-3 h-3" />
+                        No pool found for this token pair
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {amountIn && amountOutMin && (
-                <div className="mt-6 p-4 bg-secondary rounded-lg">
+                <div className="mt-4 p-4 bg-secondary rounded-lg">
                   <div className="text-sm font-medium mb-2">Exchange Rate</div>
                   <div className="text-sm text-muted-foreground">
                     1 {TOKEN_METADATA[selectedTokenIn]?.symbol || 'TOKEN'} = {' '}
@@ -1009,6 +1042,41 @@ const CoWProtocol: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Pool Validation Status */}
+                {poolToken0 && poolToken1 && poolFee && (
+                  <div className={`p-4 border rounded-lg ${
+                    checkPoolExists(allPools, poolToken0, poolToken1, poolFee)
+                      ? 'bg-destructive/10 border-destructive/20'
+                      : 'bg-primary/10 border-primary/20'
+                  }`}>
+                    {checkPoolExists(allPools, poolToken0, poolToken1, poolFee) ? (
+                      <div className="flex items-center gap-2 mb-2">
+                        <XCircle className="w-4 h-4 text-destructive" />
+                        <span className="font-medium text-destructive">Pool Already Exists</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-primary">Pool Available</span>
+                      </div>
+                    )}
+                    <div className={`text-xs space-y-1 ${
+                      checkPoolExists(allPools, poolToken0, poolToken1, poolFee)
+                        ? 'text-destructive'
+                        : 'text-primary'
+                    }`}>
+                      <div>
+                        Pool ID: {generatePoolId(poolToken0, poolToken1, poolFee)}
+                      </div>
+                      {checkPoolExists(allPools, poolToken0, poolToken1, poolFee) ? (
+                        <div>❌ A pool with this token pair and fee already exists</div>
+                      ) : (
+                        <div>✅ This pool configuration is available</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* CoW Features Info */}
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
@@ -1074,34 +1142,72 @@ const CoWProtocol: React.FC = () => {
                 </div>
               </div>
 
-              {/* Created Pools */}
+              {/* Your Pools */}
               <div className="bg-card p-6 rounded-lg border">
-                <h3 className="text-xl font-semibold mb-4">Created Pools ({createdPools.length})</h3>
+                <h3 className="text-xl font-semibold mb-4">Your Pools ({createdPools.length})</h3>
 
                 {createdPools.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Waves className="w-12 h-12 mx-auto mb-4" />
-                    <div>No pools created yet</div>
-                    <div className="text-sm">Create your first CoW-enabled pool above</div>
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Waves className="w-8 h-8 mx-auto mb-2" />
+                    <div className="text-sm">No pools created yet</div>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {createdPools.map((pool, index) => (
-                      <div key={index} className="border rounded-lg p-4 bg-secondary/20">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="font-medium">{pool.name}</div>
-                          <div className="text-xs bg-success text-background px-2 py-1 rounded">
-                            Active
+                      <div key={index} className="border rounded-lg p-3 bg-primary/5">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-medium text-sm">{pool.name}</div>
+                          <div className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                            Owner
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground mb-2">
+                        <div className="text-xs text-muted-foreground mb-1">
                           {pool.token0.symbol} / {pool.token1.symbol} • Fee: {(pool.fee / 10000).toFixed(2)}%
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Created: {new Date(pool.createdAt).toLocaleString()}
                         </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          Hook: {CONTRACT_ADDRESSES.COW_HOOK}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* All Available Pools */}
+              <div className="bg-card p-6 rounded-lg border">
+                <h3 className="text-xl font-semibold mb-4">All Available Pools ({allPools.filter(p => p.isActive).length})</h3>
+
+                {allPools.filter(p => p.isActive).length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Waves className="w-8 h-8 mx-auto mb-2" />
+                    <div className="text-sm">No pools available</div>
+                    <div className="text-xs">Create the first pool to start trading</div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {allPools.filter(p => p.isActive).map((pool, index) => (
+                      <div key={pool.id} className="border rounded-lg p-3 bg-secondary/10">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-medium text-sm">{pool.name}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-xs bg-success text-background px-2 py-1 rounded">
+                              Active
+                            </div>
+                            {pool.creator.toLowerCase() === address?.toLowerCase() && (
+                              <div className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                                Your Pool
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {pool.token0.symbol} / {pool.token1.symbol} • Fee: {(pool.fee / 10000).toFixed(2)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Creator: {pool.creator === address ? 'You' : `${pool.creator.slice(0, 6)}...${pool.creator.slice(-4)}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Created: {new Date(pool.createdAt).toLocaleString()}
                         </div>
                       </div>
                     ))}

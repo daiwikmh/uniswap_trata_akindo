@@ -4,14 +4,14 @@
 
 // Deployed mock token addresses
 export const DEPLOYED_TOKENS = {
-  TEST0: '0xe480AaD2C18D9c9979069A50be92f2656D2D857C' as `0x${string}`,
-  TEST1: '0x77a0215D490678108270b7a0DF18F33C7fD1a03C' as `0x${string}`,
+  TEST0: '0x4EA1280960874317F48b5a0cBce945775F09A57E' as `0x${string}`,
+  TEST1: '0xBDf4160F0E15Ea73cAd1Caa1e25277f0062ac1F4' as `0x${string}`,
 } as const;
 
 // Contract addresses from CoW Protocol deployment
 export const COW_PROTOCOL_ADDRESSES = {
-  COW_HOOK: '0x42f3D2641c9Ed51aEa542298b2F92D779C9700c0' as `0x${string}`,
-  COW_SOLVER: '0x03837117417572FB2a66137A11A0A0Fcc020D525' as `0x${string}`,
+  COW_HOOK: '0x2b9c691E06Cb5F1b23858E4585d8eF58fd0380c0' as `0x${string}`,
+  COW_SOLVER: '0x6659362Dd22ebA589aFe952da13517361FDe8a2a' as `0x${string}`,
   POOL_MANAGER: '0xab68573623f90708958c119F7F75236b5F13EF00' as `0x${string}`,
 } as const;
 
@@ -146,6 +146,24 @@ export function validateTokenPair(token0: TokenInfo, token1: TokenInfo): string[
 // Export all available tokens as array
 export const ALL_TOKENS = Object.values(TOKEN_METADATA);
 
+// Pool storage key for localStorage
+export const POOL_STORAGE_KEY = 'cow_protocol_pools';
+
+// Pool interface for persistence
+export interface CreatedPool {
+  id: string;
+  name: string;
+  token0: TokenInfo;
+  token1: TokenInfo;
+  fee: number;
+  initialPrice: number;
+  poolKey: PoolKey;
+  createdAt: number;
+  creator: string;
+  txHash?: string;
+  isActive: boolean;
+}
+
 // Export specific token instances for convenience
 export const TEST0_TOKEN = TOKEN_METADATA[DEPLOYED_TOKENS.TEST0];
 export const TEST1_TOKEN = TOKEN_METADATA[DEPLOYED_TOKENS.TEST1];
@@ -227,4 +245,37 @@ export function estimatePriceImpact(
   const priceBefore = Number(reserveIn) / Number(reserveOut);
 
   return Math.abs(priceAfter - priceBefore) / priceBefore * 100;
+}
+
+// Pool storage utilities
+export function savePoolsToStorage(pools: CreatedPool[]): void {
+  try {
+    localStorage.setItem(POOL_STORAGE_KEY, JSON.stringify(pools));
+  } catch (error) {
+    console.error('Failed to save pools to storage:', error);
+  }
+}
+
+export function loadPoolsFromStorage(): CreatedPool[] {
+  try {
+    const stored = localStorage.getItem(POOL_STORAGE_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored);
+  } catch (error) {
+    console.error('Failed to load pools from storage:', error);
+    return [];
+  }
+}
+
+export function generatePoolId(token0: string, token1: string, fee: number): string {
+  // Create deterministic pool ID based on canonical token ordering and fee
+  const [currency0, currency1] = token0.toLowerCase() < token1.toLowerCase()
+    ? [token0, token1]
+    : [token1, token0];
+  return `${currency0}-${currency1}-${fee}`;
+}
+
+export function checkPoolExists(pools: CreatedPool[], token0: string, token1: string, fee: number): boolean {
+  const poolId = generatePoolId(token0, token1, fee);
+  return pools.some(pool => pool.id === poolId && pool.isActive);
 }
